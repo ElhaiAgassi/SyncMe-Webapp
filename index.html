@@ -8,19 +8,23 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
     <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Prevent scrolling */
+        }
         #video-container {
             display: flex;
-            justify-content: space-around; /* Distributes space evenly around items */
-            align-items: center; /* Vertically centers the items in the container */
             height: 100vh; /* Full viewport height */
+            background: #000; /* Helps see the area covered by the container */
         }
         video {
-            width: 50%; /* Each video takes up half of the container width */
-            max-height: 90vh; /* Limits the video height if necessary */
-            transform: scaleX(-1); /* Mirrors the video */
+            width: 50%; /* Each video takes up half of the width of the container */
+            height: auto; /* Maintain aspect ratio */
         }
-        #remoteVideo {
-            transform: scaleX(1); /* Ensure remote video is not mirrored */
+        #localVideo {
+            transform: scaleX(-1); /* Mirrors the local video */
         }
         button {
             position: fixed;
@@ -37,7 +41,6 @@
 </div>
 <button onclick="startCall()">Start Call</button>
 <button onclick="downloadCSV()">Download CSV</button>
-
 
 <script>
     const localVideo = document.getElementById('localVideo');
