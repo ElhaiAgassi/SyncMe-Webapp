@@ -8,16 +8,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
     <style>
-        #video-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh; /* Full viewport height */
+        video, canvas {
+            position: absolute;
+            transform: scaleX(-1);
+            width: 50%;
         }
-        video, canvas, #remoteVideo, #remoteCanvas {
-            flex: 1; /* Each child will take up equal space */
-            transform: scaleX(-1); /* Mirror the video and canvas */
-            max-width: 50%; /* Limit maximum width */
+        #remoteVideo, #remoteCanvas {
+            left: 50%;
+            transform: scaleX(-1) translateX(-100%);
         }
         button {
             position: absolute;
@@ -31,6 +29,7 @@
 <video id="localVideo" autoplay muted playsinline width="640" height="480"></video>
 <video id="remoteVideo" autoplay playsinline width="640" height="480"></video>
 <canvas id="outputCanvas" width="640" height="480"></canvas>
+<button onclick="startCall()">Start Call</button>
 <button onclick="downloadCSV()">Download CSV</button>
 
 <script>
