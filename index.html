@@ -8,26 +8,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden; /* Prevent scrolling */
-        }
         #video-container {
             display: flex;
+            justify-content: center;
+            align-items: center;
             height: 100vh; /* Full viewport height */
-            background: #000; /* Helps see the area covered by the container */
         }
-        video {
-            width: 50%; /* Each video takes up half of the width of the container */
-            height: auto; /* Maintain aspect ratio */
-        }
-        #localVideo {
-            transform: scaleX(-1); /* Mirrors the local video */
+        video, canvas, #remoteVideo, #remoteCanvas {
+            flex: 1; /* Each child will take up equal space */
+            transform: scaleX(-1); /* Mirror the video and canvas */
+            max-width: 50%; /* Limit maximum width */
         }
         button {
-            position: fixed;
+            position: absolute;
             top: 10px;
             left: 10px;
             z-index: 10;
@@ -35,11 +28,9 @@
     </style>
 </head>
 <body>
-<div id="video-container">
-    <video id="localVideo" autoplay muted playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-</div>
-<button onclick="startCall()">Start Call</button>
+<video id="localVideo" autoplay muted playsinline width="640" height="480"></video>
+<video id="remoteVideo" autoplay playsinline width="640" height="480"></video>
+<canvas id="outputCanvas" width="640" height="480"></canvas>
 <button onclick="downloadCSV()">Download CSV</button>
 
 <script>
@@ -65,36 +56,18 @@
         minTrackingConfidence: 0.5
     });
     hands.onResults((results) => {
-    const currentTime = Date.now();
-    canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-    if (results.multiHandLandmarks) {
-        results.multiHandLandmarks.forEach((landmarks, index) => {
-            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
-            drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
-
-            // Logging each landmark with detailed position and time
-            landmarks.forEach((landmark, landmarkIndex) => {
-                console.log(`Hand ${index}, Landmark ${landmarkIndex}: (${landmark.x}, ${landmark.y}, ${landmark.z}) at time ${currentTime}`);
-            });
-
-            // Optionally push to an array or object for further processing
-            handMovements.push({
-                time: currentTime,
-                handIndex: index,
-                landmarks: landmarks.map(l => ({
-                    x: l.x,
-                    y: l.y,
-                    z: l.z
-                }))
-            });
-        });
-    }
-    canvasCtx.restore();
-});
-
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+        if (results.multiHandLandmarks) {
+            for (const [index, landmarks] of results.multiHandLandmarks.entries()) {
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
+                drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
+                handMovements.push({time: Date.now(), handIndex: index, landmarks: landmarks.map(l => ({x: l.x, y: l.y, z: l.z}))});
+            }
+        }
+        canvasCtx.restore();
+    });
 
     setInterval(() => {
         if (handMovements.length) {
