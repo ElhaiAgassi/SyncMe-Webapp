@@ -31,6 +31,7 @@ io.on('connection', socket => {
     });
 });
 
-server.listen(3000, () => {
-    console.log('Listening on port 3000');
+const PORT = process.env.PORT || 3000;  // Use Heroku's port or 3000 if there's nothing set
+server.listen(PORT, () => {
+    console.log(`Listening on port ${PORT}`);
 });
