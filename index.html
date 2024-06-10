@@ -10,14 +10,17 @@
     <style>
         #video-container {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            justify-content: space-around; /* Distributes space evenly around items */
+            align-items: center; /* Vertically centers the items in the container */
             height: 100vh; /* Full viewport height */
         }
-        video, canvas {
-            flex: 1; /* Each child will take up equal space */
-            transform: scaleX(-1); /* Mirror the video and canvas */
-            max-width: 50%; /* Limit maximum width */
+        video {
+            width: 50%; /* Each video takes up half of the container width */
+            max-height: 90vh; /* Limits the video height if necessary */
+            transform: scaleX(-1); /* Mirrors the video */
+        }
+        #remoteVideo {
+            transform: scaleX(1); /* Ensure remote video is not mirrored */
         }
         button {
             position: fixed;
@@ -30,7 +33,6 @@
 <body>
 <div id="video-container">
     <video id="localVideo" autoplay muted playsinline></video>
-    <canvas id="outputCanvas"></canvas>
     <video id="remoteVideo" autoplay playsinline></video>
 </div>
 <button onclick="startCall()">Start Call</button>
