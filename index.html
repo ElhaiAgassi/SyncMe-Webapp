@@ -8,14 +8,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
     <style>
-        video, canvas {
-            position: absolute;
-            transform: scaleX(-1);
-            width: 50%;
+        #video-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* Full viewport height */
         }
-        #remoteVideo, #remoteCanvas {
-            left: 50%;
-            transform: scaleX(-1) translateX(-100%);
+        video, canvas, #remoteVideo, #remoteCanvas {
+            flex: 1; /* Each child will take up equal space */
+            transform: scaleX(-1); /* Mirror the video and canvas */
+            max-width: 50%; /* Limit maximum width */
         }
         button {
             position: absolute;
@@ -29,7 +31,6 @@
 <video id="localVideo" autoplay muted playsinline width="640" height="480"></video>
 <video id="remoteVideo" autoplay playsinline width="640" height="480"></video>
 <canvas id="outputCanvas" width="640" height="480"></canvas>
-<button onclick="startCall()">Start Call</button>
 <button onclick="downloadCSV()">Download CSV</button>
 
 <script>
@@ -100,25 +101,35 @@
     };
 
     peerConnection.ontrack = event => {
+    console.log("Remote stream received");
+    if (remoteVideo.srcObject !== event.streams[0]) {
         remoteVideo.srcObject = event.streams[0];
-    };
+        console.log("Remote video srcObject set");
+    }
+};
+
 
     socket.on('offer', data => {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
+    peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
         .then(() => peerConnection.createAnswer())
         .then(answer => {
             peerConnection.setLocalDescription(answer);
             socket.emit('answer', { answer });
-        });
-    });
+        })
+        .catch(e => console.error(e));
+});
 
-    socket.on('answer', data => {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-    });
+socket.on('answer', data => {
+    peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+        .catch(e => console.error(e));
+});
 
-    socket.on('ice-candidate', data => {
-        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-    });
+socket.on('ice-candidate', data => {
+    if (data.candidate) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+            .catch(e => console.error(e));
+    }
+});
 
     function startCall() {
         peerConnection.createOffer()
