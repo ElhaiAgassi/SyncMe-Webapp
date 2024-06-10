@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Video Conference with Hand Tracking</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <style>
+        video, canvas {
+            position: absolute;
+            transform: scaleX(-1);
+            width: 50%;
+        }
+        #remoteVideo, #remoteCanvas {
+            left: 50%;
+            transform: scaleX(-1) translateX(-100%);
+        }
+        button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+<video id="localVideo" autoplay muted playsinline width="640" height="480"></video>
+<video id="remoteVideo" autoplay playsinline width="640" height="480"></video>
+<canvas id="outputCanvas" width="640" height="480"></canvas>
+<button onclick="startCall()">Start Call</button>
+<button onclick="downloadCSV()">Download CSV</button>
+
+<script>
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const canvasElement = document.getElementById('outputCanvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const socket = io.connect('http://localhost:3000');
+    let localStream;
+    let peerConnection = new RTCPeerConnection();
+
+    let handMovements = []; // Array to store hand movement data
+    const loggingInterval = 5000; // Time in ms between logs
+
+    // Setup MediaPipe Hands
+    const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+    hands.setOptions({
+        maxNumHands: 4,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+    hands.onResults((results) => {
+    const currentTime = Date.now();
+    canvasCtx.save();
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+    if (results.multiHandLandmarks) {
+        results.multiHandLandmarks.forEach((landmarks, index) => {
+            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
+            drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
+
+            // Logging each landmark with detailed position and time
+            landmarks.forEach((landmark, landmarkIndex) => {
+                console.log(`Hand ${index}, Landmark ${landmarkIndex}: (${landmark.x}, ${landmark.y}, ${landmark.z}) at time ${currentTime}`);
+            });
+
+            // Optionally push to an array or object for further processing
+            handMovements.push({
+                time: currentTime,
+                handIndex: index,
+                landmarks: landmarks.map(l => ({
+                    x: l.x,
+                    y: l.y,
+                    z: l.z
+                }))
+            });
+        });
+    }
+    canvasCtx.restore();
+});
+
+
+    setInterval(() => {
+        if (handMovements.length) {
+            console.log(handMovements); // Log the data; replace this with a server call if needed
+            handMovements = []; // Clear the array after logging
+        }
+    }, loggingInterval);
+
+    // Setup camera
+    const camera = new Camera(localVideo, {
+        onFrame: async () => {
+            await hands.send({image: localVideo});
+        },
+        width: 640,
+        height: 480
+    });
+    camera.start();
+
+    // WebRTC setup
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(stream => {
+            localVideo.srcObject = stream;
+            localStream = stream;
+            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+        });
+
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            socket.emit('ice-candidate', { candidate: event.candidate });
+        }
+    };
+
+    peerConnection.ontrack = event => {
+        remoteVideo.srcObject = event.streams[0];
+    };
+
+    socket.on('offer', data => {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
+        .then(() => peerConnection.createAnswer())
+        .then(answer => {
+            peerConnection.setLocalDescription(answer);
+            socket.emit('answer', { answer });
+        });
+    });
+
+    socket.on('answer', data => {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+    });
+
+    socket.on('ice-candidate', data => {
+        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+    });
+
+    function startCall() {
+        peerConnection.createOffer()
+            .then(offer => {
+                peerConnection.setLocalDescription(offer);
+                socket.emit('offer', { offer });
+            });
+    }
+
+
+    function downloadCSV() {
+        const rows = [
+            ["time", "handIndex", "landmarkIndex", "x", "y", "z"]
+        ];
+        handMovements.forEach(move => {
+            move.landmarks.forEach((landmark, index) => {
+                rows.push([move.time, move.handIndex, index, landmark.x, landmark.y, landmark.z]);
+            });
+        });
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        rows.forEach(rowArray => {
+            let row = rowArray.join(",");
+            csvContent += row + "\r\n";
+        });
+
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "hand_movements.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+
+
+
+</script>
+</body>
+</html>
