@@ -28,17 +28,14 @@
             object-fit: cover; /* Cover the area without distorting the aspect ratio */
         }
         #localVideo {
-            width: 50%;
             transform: scaleX(-1); /* Mirrors the local video */
         }
         </style>
     
 </head>
 <body>
-<div id="video-container">
-    <video id="localVideo" autoplay muted playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-</div>
+<video id="localVideo" autoplay muted playsinline></video>
+<video id="remoteVideo" autoplay playsinline></video>
 <canvas id="outputCanvas" width="640" height="480"></canvas>
 <button onclick="downloadCSV()">Download CSV</button>
 
@@ -47,13 +44,9 @@
     const remoteVideo = document.getElementById('remoteVideo');
     const canvasElement = document.getElementById('outputCanvas');
     const canvasCtx = canvasElement.getContext('2d');
-    const socket = io.connect('window.location.origin');
+    const socket = io.connect('http://localhost:3000');
     let localStream;
-    let peerConnection = new RTCPeerConnection({
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' }
-        ]
-    });
+    let peerConnection = new RTCPeerConnection();
 
     let handMovements = []; // Array to store hand movement data
     const loggingInterval = 5000; // Time in ms between logs
@@ -100,36 +93,13 @@
     camera.start();
 
     // WebRTC setup
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
     .then(stream => {
         localVideo.srcObject = stream;
         localStream = stream;
         stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
     }).catch(e => console.error('Error with getUserMedia:', e));
-
-
-    // Add the dynamic video size adjustment function
-    function adjustVideoSize() {
-        const aspectRatio1 = localVideo.videoWidth / localVideo.videoHeight;
-        const aspectRatio2 = remoteVideo.videoWidth / remoteVideo.videoHeight;
-        const containerWidth = document.getElementById('video-container').clientWidth;
-        const videoWidth = containerWidth / 2;
-
-        localVideo.style.width = `${videoWidth}px`;
-        localVideo.style.height = `${videoWidth / aspectRatio1}px`;
-
-        remoteVideo.style.width = `${videoWidth}px`;
-        remoteVideo.style.height = `${videoWidth / aspectRatio2}px`;
-    }
-
-    // Event listener to adjust video size on window resize
-    window.addEventListener('resize', adjustVideoSize);
-
-    // Initial call to adjust sizes after the stream is available
-    localVideo.onloadedmetadata = adjustVideoSize; // When local video metadata is loaded
-    remoteVideo.onloadedmetadata = adjustVideoSize; // When remote video metadata is loaded
-
-
+            
 
     peerConnection.onicecandidate = event => {
         if (event.candidate) {
