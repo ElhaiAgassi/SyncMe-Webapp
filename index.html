@@ -25,7 +25,7 @@
         video {
             width: 50%; /* Each video takes half of the container's width */
             height: auto; /* Maintain aspect ratio */
-            /* object-fit: cover; Cover the area without distorting the aspect ratio */
+            object-fit: cover; /* Cover the area without distorting the aspect ratio */
         }
         #localVideo {
             width: 50%;
@@ -35,8 +35,10 @@
     
 </head>
 <body>
-<video id="localVideo" autoplay muted playsinline></video>
-<video id="remoteVideo" autoplay playsinline></video>
+<div id="video-container">
+    <video id="localVideo" autoplay muted playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+</div>
 <canvas id="outputCanvas" width="640" height="480"></canvas>
 <button onclick="downloadCSV()">Download CSV</button>
 
@@ -45,9 +47,13 @@
     const remoteVideo = document.getElementById('remoteVideo');
     const canvasElement = document.getElementById('outputCanvas');
     const canvasCtx = canvasElement.getContext('2d');
-    const socket = io.connect('http://localhost:3000');
+    const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com/');
     let localStream;
-    let peerConnection = new RTCPeerConnection();
+    let peerConnection = new RTCPeerConnection({
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' }
+        ]
+    });
 
     let handMovements = []; // Array to store hand movement data
     const loggingInterval = 5000; // Time in ms between logs
