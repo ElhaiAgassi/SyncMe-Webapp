@@ -8,28 +8,35 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
     <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%; /* Ensure the full height of the viewport is used */
+            width: 100%; /* Ensure the full width of the viewport is used */
+            overflow: hidden; /* Prevent scrolling */
+        }
         #video-container {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
             height: 100vh; /* Full viewport height */
+            width: 100vw; /* Full viewport width */
         }
-        video, canvas, #remoteVideo, #remoteCanvas {
-            flex: 1; /* Each child will take up equal space */
-            transform: scaleX(-1); /* Mirror the video and canvas */
-            max-width: 50%; /* Limit maximum width */
+        video {
+            width: 50%; /* Each video takes half of the container's width */
+            height: auto; /* Maintain aspect ratio */
+            /* object-fit: cover; Cover the area without distorting the aspect ratio */
         }
-        button {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 10;
+        #localVideo {
+            width: 50%;
+            transform: scaleX(-1); /* Mirrors the local video */
         }
-    </style>
+        </style>
+    
 </head>
 <body>
-<video id="localVideo" autoplay muted playsinline width="640" height="480"></video>
-<video id="remoteVideo" autoplay playsinline width="640" height="480"></video>
+<video id="localVideo" autoplay muted playsinline></video>
+<video id="remoteVideo" autoplay playsinline></video>
 <canvas id="outputCanvas" width="640" height="480"></canvas>
 <button onclick="downloadCSV()">Download CSV</button>
 
@@ -87,12 +94,36 @@
     camera.start();
 
     // WebRTC setup
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(stream => {
-            localVideo.srcObject = stream;
-            localStream = stream;
-            stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-        });
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(stream => {
+        localVideo.srcObject = stream;
+        localStream = stream;
+        stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+    }).catch(e => console.error('Error with getUserMedia:', e));
+
+
+    // Add the dynamic video size adjustment function
+    function adjustVideoSize() {
+        const aspectRatio1 = localVideo.videoWidth / localVideo.videoHeight;
+        const aspectRatio2 = remoteVideo.videoWidth / remoteVideo.videoHeight;
+        const containerWidth = document.getElementById('video-container').clientWidth;
+        const videoWidth = containerWidth / 2;
+
+        localVideo.style.width = `${videoWidth}px`;
+        localVideo.style.height = `${videoWidth / aspectRatio1}px`;
+
+        remoteVideo.style.width = `${videoWidth}px`;
+        remoteVideo.style.height = `${videoWidth / aspectRatio2}px`;
+    }
+
+    // Event listener to adjust video size on window resize
+    window.addEventListener('resize', adjustVideoSize);
+
+    // Initial call to adjust sizes after the stream is available
+    localVideo.onloadedmetadata = adjustVideoSize; // When local video metadata is loaded
+    remoteVideo.onloadedmetadata = adjustVideoSize; // When remote video metadata is loaded
+
+
 
     peerConnection.onicecandidate = event => {
         if (event.candidate) {
