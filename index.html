@@ -24,6 +24,8 @@
             height: 100%;
             transform: scaleX(-1);
         }
+
+        }
         video {
             width: 50%;
             height: 100%;
@@ -96,15 +98,15 @@
         }
     }, loggingInterval);
 
-    // Setup camera
-    const camera = new Camera(localVideo, {
+    // Setup local camera
+    const localCamera  = new Camera(localVideo, {
         onFrame: async () => {
             await hands.send({image: localVideo});
         },
         width: 640,
         height: 480
     });
-    camera.start();
+    localCamera.start();
 
     // WebRTC setup
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -126,8 +128,17 @@
     if (remoteVideo.srcObject !== event.streams[0]) {
         remoteVideo.srcObject = event.streams[0];
         console.log("Remote video srcObject set");
-    }
-};
+        // Setup remote camera after the remote stream is received
+        const remoteCamera = new Camera(remoteVideo, {
+                onFrame: async () => {
+                    await hands.send({image: remoteVideo});
+                },
+                width: 640,
+                height: 480
+            });
+            remoteCamera.start();
+        }
+    };
 
 
     socket.on('offer', data => {
