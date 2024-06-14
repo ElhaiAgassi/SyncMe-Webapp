@@ -14,32 +14,29 @@
             height: 100%;
             width: 100%;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #video-container {
             display: flex;
-            justify-content: space-around;
-            align-items: center;
-            height: 100vh;
-            width: 100vw;
-        }
-        .video-wrapper {
-            width: 45%;
-            height: auto;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
         }
         video {
-            width: 100%;
-            height: auto;
+            width: 50%;
+            height: 100%;
             object-fit: cover;
-        }
-        #localVideo {
-            transform: scaleX(-1);
         }
         #outputCanvas {
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 1;
-            pointer-events: none; /* Allow clicks to pass through to the video */
+            pointer-events: none;
         }
         #downloadButton {
             position: fixed;
@@ -51,12 +48,8 @@
 </head>
 <body>
 <div id="video-container">
-    <div class="video-wrapper">
-        <video id="localVideo" autoplay muted playsinline></video>
-    </div>
-    <div class="video-wrapper">
-        <video id="remoteVideo" autoplay playsinline></video>
-    </div>
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
 </div>
 <canvas id="outputCanvas" width="640" height="480"></canvas>
 <button id="downloadButton" onclick="downloadCSV()">Download CSV</button>
@@ -138,13 +131,13 @@
 
 
     socket.on('offer', data => {
-    peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
-        .then(() => peerConnection.createAnswer())
-        .then(answer => {
-            peerConnection.setLocalDescription(answer);
-            socket.emit('answer', { answer });
-        })
-        .catch(e => console.error(e));
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
+            .then(() => peerConnection.createAnswer())
+            .then(answer => {
+                peerConnection.setLocalDescription(answer);
+                socket.emit('answer', { answer });
+            })
+            .catch(e => console.error(e));
     });
 
     socket.on('answer', data => {
