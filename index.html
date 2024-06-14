@@ -11,36 +11,42 @@
         body, html {
             margin: 0;
             padding: 0;
-            height: 100%; /* Ensure the full height of the viewport is used */
-            width: 100%; /* Ensure the full width of the viewport is used */
-            overflow: hidden; /* Prevent scrolling */
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
         }
         #video-container {
             display: flex;
             justify-content: space-around;
-            align-items: center; /* Center vertically */
-            height: 100vh; /* Full viewport height */
-            width: 100vw; /* Full viewport width */
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+        }
+        .video-wrapper {
+            width: 45%;
+            height: auto;
         }
         video {
-            width: 45%; /* Each video takes half of the container's width */
-            height: auto; /* Maintain aspect ratio */
-            object-fit: cover; /* Cover the area without distorting the aspect ratio */
+            width: 100%;
+            height: auto;
+            object-fit: cover;
         }
         #localVideo {
-            transform: scaleX(-1); /* Mirrors the local video */
+            transform: scaleX(-1);
         }
-        </style>
-    
+    </style>
 </head>
 <body>
-<!-- <div id="video-container"> -->
-    <video id="localVideo" autoplay muted playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-<!-- </div> -->
-<canvas id="outputCanvas" width="640" height="480"></canvas>
+<div id="video-container">
+    <div class="video-wrapper">
+        <video id="localVideo" autoplay muted playsinline></video>
+    </div>
+    <div class="video-wrapper">
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+</div>
+<canvas id="outputCanvas" width="640" height="480" style="display:none;"></canvas>
 <button onclick="downloadCSV()">Download CSV</button>
-
 <script>
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
@@ -174,8 +180,7 @@
         document.body.removeChild(link);
     }
 
-
-
+    startCall();
 
 </script>
 </body>
