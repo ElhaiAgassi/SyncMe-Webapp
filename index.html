@@ -34,10 +34,10 @@
     
 </head>
 <body>
-<div id="video-container">
+<!-- <div id="video-container"> -->
     <video id="localVideo" autoplay muted playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
-</div>
+<!-- </div> -->
 <canvas id="outputCanvas" width="640" height="480"></canvas>
 <button onclick="downloadCSV()">Download CSV</button>
 
@@ -46,7 +46,7 @@
     const remoteVideo = document.getElementById('remoteVideo');
     const canvasElement = document.getElementById('outputCanvas');
     const canvasCtx = canvasElement.getContext('2d');
-    const socket = io.connect('http://localhost:3000');
+    const socket = io.connect('window.location.origin');
     let localStream;
     let peerConnection = new RTCPeerConnection();
 
@@ -174,7 +174,7 @@
         document.body.removeChild(link);
     }
 
-    startCall();
+
 
 
 </script>
