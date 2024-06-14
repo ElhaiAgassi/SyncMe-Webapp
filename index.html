@@ -34,6 +34,19 @@
         #localVideo {
             transform: scaleX(-1);
         }
+        #outputCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            pointer-events: none; /* Allow clicks to pass through to the video */
+        }
+        #downloadButton {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 2;
+        }
     </style>
 </head>
 <body>
@@ -45,8 +58,8 @@
         <video id="remoteVideo" autoplay playsinline></video>
     </div>
 </div>
-<canvas id="outputCanvas" width="640" height="480" style="display:none;"></canvas>
-<button onclick="downloadCSV()">Download CSV</button>
+<canvas id="outputCanvas" width="640" height="480"></canvas>
+<button id="downloadButton" onclick="downloadCSV()">Download CSV</button>
 <script>
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
