@@ -17,13 +17,13 @@
         }
         #video-container {
             display: flex;
-            justify-content: center; /* Center horizontally */
+            justify-content: space-around;
             align-items: center; /* Center vertically */
             height: 100vh; /* Full viewport height */
             width: 100vw; /* Full viewport width */
         }
         video {
-            width: 50%; /* Each video takes half of the container's width */
+            width: 45%; /* Each video takes half of the container's width */
             height: auto; /* Maintain aspect ratio */
             object-fit: cover; /* Cover the area without distorting the aspect ratio */
         }
@@ -34,8 +34,10 @@
     
 </head>
 <body>
-<video id="localVideo" autoplay muted playsinline></video>
-<video id="remoteVideo" autoplay playsinline></video>
+<div id="video-container">
+    <video id="localVideo" autoplay muted playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+</div>
 <canvas id="outputCanvas" width="640" height="480"></canvas>
 <button onclick="downloadCSV()">Download CSV</button>
 
@@ -124,19 +126,19 @@
             socket.emit('answer', { answer });
         })
         .catch(e => console.error(e));
-});
+    });
 
-socket.on('answer', data => {
-    peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-        .catch(e => console.error(e));
-});
-
-socket.on('ice-candidate', data => {
-    if (data.candidate) {
-        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+    socket.on('answer', data => {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
             .catch(e => console.error(e));
-    }
-});
+    });
+
+    socket.on('ice-candidate', data => {
+        if (data.candidate) {
+            peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+                .catch(e => console.error(e));
+        }
+    });
 
     function startCall() {
         peerConnection.createOffer()
@@ -172,7 +174,7 @@ socket.on('ice-candidate', data => {
         document.body.removeChild(link);
     }
 
-
+    startCall();
 
 
 </script>
