@@ -93,7 +93,7 @@
     const remoteVideo = document.getElementById('remoteVideo');
     const canvasElement = document.getElementById('outputCanvas');
     const canvasCtx = canvasElement.getContext('2d');
-    const socket = io.connect('window.location.origin');
+    const socket = io.connect('http://localhost:3000');
     let localStream;
     let peerConnection = new RTCPeerConnection();
 
@@ -111,18 +111,29 @@
         minTrackingConfidence: 0.5
     });
     hands.onResults((results) => {
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-        if (results.multiHandLandmarks) {
-            for (const [index, landmarks] of results.multiHandLandmarks.entries()) {
+    canvasCtx.save();
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    
+    console.log("onResults called"); // Log to check if the callback is being called
+    console.log(results.multiHandLandmarks); // Log the multiHandLandmarks array
+    
+    if (results.multiHandLandmarks) {
+        for (const [index, landmarks] of results.multiHandLandmarks.entries()) {
+            try {
                 drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
                 drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
                 handMovements.push({time: Date.now(), handIndex: index, landmarks: landmarks.map(l => ({x: l.x, y: l.y, z: l.z}))});
+            } catch (error) {
+                console.error("Error drawing landmarks:", error);
             }
         }
-        canvasCtx.restore();
-    });
+    } else {
+        console.log("No hands detected");
+    }
+    
+    canvasCtx.restore();
+});
 
     setInterval(() => {
         if (handMovements.length) {
@@ -176,7 +187,6 @@
         };
     }
 };
-
 
 
     socket.on('offer', data => {
