@@ -17,17 +17,46 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            background-color: #f0f0f0;
         }
         #video-container {
             display: flex;
             width: 100%;
             height: 100%;
-            /* transform: scaleX(-1); */
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-        video {
+        .video-wrapper {
             width: 50%;
             height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+            position: relative;
+        }
+        .video-wrapper::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #888888;
+        }
+        #localVideo-wrapper::before {
+            content: "Local Video";
+        }
+        #remoteVideo-wrapper::before {
+            content: "Remote Video";
+        }
+        video {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
+            transform: scaleX(-1);
+        }
+        #localVideo {
             transform: scaleX(-1);
         }
         #outputCanvas {
@@ -48,12 +77,17 @@
     </style>
 </head>
 <body>
-<div id="video-container">
-    <video id="localVideo" autoplay playsinline muted></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-</div>
-<canvas id="outputCanvas" width="640" height="480"></canvas>
-<button id="downloadButton" onclick="downloadCSV()">Download CSV</button>
+    <div id="video-container">
+        <div class="video-wrapper" id="localVideo-wrapper">
+            <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+        <div class="video-wrapper" id="remoteVideo-wrapper">
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+    </div>
+    <canvas id="outputCanvas" width="640" height="480"></canvas>
+    <button id="downloadButton" onclick="downloadCSV()">Download CSV</button>
+</body>
 <script>
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
@@ -113,6 +147,7 @@
         localVideo.srcObject = stream;
         localStream = stream;
         stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+        console.log('Local stream added.');
     }).catch(e => console.error('Error with getUserMedia:', e));
             
 
@@ -123,21 +158,25 @@
     };
 
     peerConnection.ontrack = event => {
-    console.log("Remote stream received");
+    console.log('Remote stream received.');
     if (remoteVideo.srcObject !== event.streams[0]) {
         remoteVideo.srcObject = event.streams[0];
         console.log("Remote video srcObject set");
-        // Setup remote camera after the remote stream is received
-        const remoteCamera = new Camera(remoteVideo, {
+        // Wait for the remote video to load its metadata
+        remoteVideo.onloadedmetadata = () => {
+            // Setup remote camera after the remote stream is received and video dimensions are known
+            const remoteCamera = new Camera(remoteVideo, {
                 onFrame: async () => {
                     await hands.send({image: remoteVideo});     
                 },
-                width: 640,
-                height: 480
+                width: remoteVideo.videoWidth,
+                height: remoteVideo.videoHeight
             });
             remoteCamera.start();
-        }
-    };
+        };
+    }
+};
+
 
 
     socket.on('offer', data => {
