@@ -8,8 +8,13 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
 
+const io = socketIo(server, {
+    cors: {
+        origin: "https://powerful-caverns-44451-c8d559731987.herokuapp.com/",
+        methods: ["GET", "POST"]
+    }
+});
 // Serve static files from the root directory
 app.use(express.static(path.join(__dirname, '.')));
 
