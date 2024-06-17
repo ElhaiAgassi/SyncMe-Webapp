@@ -160,14 +160,18 @@
 
         // Listen for tracks added to the peer connection
         peerConnection.ontrack = (event) => {
-            // Set the remote video stream
-            remoteVideo.srcObject = event.streams[0];
+            console.log('Remote track received');
+            if (!remoteVideo.srcObject || remoteVideo.srcObject.id !== event.streams[0].id) {
+                remoteVideo.srcObject = event.streams[0];
+                console.log('Remote video source set');
+            }
         };
 
         // Handle ICE candidates
         peerConnection.onicecandidate = event => {
             if (event.candidate) {
                 // Send the ICE candidate to the other peer
+                console.log('Sending ICE candidate');
                 socket.emit('ice-candidate', { candidate: event.candidate });
             }
         };
@@ -192,14 +196,20 @@
 
 
         socket.on('answer', data => {
+            console.log('Received answer');
             peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-                .catch(e => console.error(e));
+                .then(() => console.log('Remote description set with answer'))
+                .catch(e => console.error('Error setting remote description with answer', e));
         });
 
+
         socket.on('ice-candidate', data => {
+            console.log('Receiving ICE candidate');
             if (data.candidate) {
-                peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
-                    .catch(e => console.error(e));
+                let candidate = new RTCIceCandidate(data.candidate);
+                peerConnection.addIceCandidate(candidate)
+                    .then(() => console.log('ICE Candidate Added'))
+                    .catch(e => console.error('Error adding received ICE candidate', e));
             }
         });
 
