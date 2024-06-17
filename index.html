@@ -156,7 +156,9 @@
         
         const socket = io();  // Automatically connect to the host that serves the page
         // const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com');
-        let peerConnection = new RTCPeerConnection();
+        let peerConnection = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
 
         // Listen for tracks added to the peer connection
         peerConnection.ontrack = (event) => {
