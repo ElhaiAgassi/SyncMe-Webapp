@@ -97,7 +97,7 @@
         const canvasElement = document.getElementById('outputCanvas');
         const canvasCtx = canvasElement.getContext('2d');
         
-        const socket = io.connect('http://localhost:3000');
+        const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com');
         let localStream;
         let peerConnection = new RTCPeerConnection();
         let handMovements = []; // Array to store hand movement data

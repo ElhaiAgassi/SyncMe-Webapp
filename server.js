@@ -8,7 +8,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Serve static files from the 'public' directory
+// Serve static files from the root directory
 app.use(express.static(path.join(__dirname, '.')));
 
 io.on('connection', socket => {
@@ -31,7 +31,8 @@ io.on('connection', socket => {
     });
 });
 
-const PORT = process.env.PORT || 3000;  // Use Heroku's port or 3000 if there's nothing set
-server.listen(PORT, () => {
-    console.log(`Listening on port ${PORT}`);
+const PORT = process.env.PORT || 3000; // fallback to 3000 if PORT is not set
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
