@@ -1,5 +1,3 @@
-
-
 // File: server.js
 const express = require('express');
 const http = require('http');
@@ -9,12 +7,14 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
+// Setup CORS and Socket.IO
 const io = socketIo(server, {
     cors: {
         origin: "https://powerful-caverns-44451-c8d559731987.herokuapp.com/",
         methods: ["GET", "POST"]
     }
 });
+
 // Serve static files from the root directory
 app.use(express.static(path.join(__dirname, '.')));
 
@@ -38,8 +38,8 @@ io.on('connection', socket => {
     });
 });
 
-const PORT = process.env.PORT || 3000; // fallback to 3000 if PORT is not set
-
-app.listen(PORT, () => {
+// Use server.listen NOT app.listen
+const PORT = process.env.PORT || 3000; // Fallback to 3000 if PORT is not set
+server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
