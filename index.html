@@ -97,10 +97,7 @@
         const canvasElement = document.getElementById('outputCanvas');
         const canvasCtx = canvasElement.getContext('2d');
         
-        // const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com');
-        const socket = io();  // Automatically connect to the host that serves the page
         let localStream;
-        let peerConnection = new RTCPeerConnection();
         let handMovements = []; // Array to store hand movement data
         const loggingInterval = 5000; // Time in ms between logs, changed from 500000 for demo
 
@@ -114,9 +111,9 @@
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
-
+        
         hands.onResults(onResults);
-
+        
         function onResults(results) {
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -130,105 +127,125 @@
             canvasCtx.restore();
             requestAnimationFrame(predictHands); // Continuously request frames for prediction
         }
-
+        
         function startVideo(videoElement) {
             navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    videoElement.srcObject = stream;
-                    videoElement.play();
-                    videoElement.onloadedmetadata = () => {
-                        canvasElement.width = videoElement.videoWidth;
-                        canvasElement.height = videoElement.videoHeight;
-                        predictHands();
-                    };
-                })
-                .catch(error => {
-                    console.error('Error opening video camera.', error);
-                });
+            .then(stream => {
+                videoElement.srcObject = stream;
+                videoElement.play();
+                videoElement.onloadedmetadata = () => {
+                    canvasElement.width = videoElement.videoWidth;
+                    canvasElement.height = videoElement.videoHeight;
+                    predictHands();
+                };
+            })
+            .catch(error => {
+                console.error('Error opening video camera.', error);
+            });
         }
-
+        
         function predictHands() {
             hands.send({image: localVideo});
         }
-
+        
         startVideo(localVideo);
+        
+        
+        const socket = io();  // Automatically connect to the host that serves the page
+        // const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com');
+        let peerConnection = new RTCPeerConnection();
 
+        // Listen for tracks added to the peer connection
+        peerConnection.ontrack = (event) => {
+            // Set the remote video stream
+            remoteVideo.srcObject = event.streams[0];
+        };
 
-    socket.on('offer', data => {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
-            .then(() => peerConnection.createAnswer())
-            .then(answer => {
-                peerConnection.setLocalDescription(answer);
-                socket.emit('answer', { answer });
-            })
-            .catch(e => console.error(e));
-    });
+        // Handle ICE candidates
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                // Send the ICE candidate to the other peer
+                socket.emit('ice-candidate', { candidate: event.candidate });
+            }
+        };
 
-    socket.on('answer', data => {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-            .catch(e => console.error(e));
-    });
-
-    socket.on('ice-candidate', data => {
-        if (data.candidate) {
-            peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+        // Existing socket event handlers and other code
+        socket.on('offer', data => {
+            peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
+                .then(() => peerConnection.createAnswer())
+                .then(answer => {
+                    peerConnection.setLocalDescription(answer);
+                    socket.emit('answer', { answer });
+                })
                 .catch(e => console.error(e));
+        });
+
+        socket.on('answer', data => {
+            peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+                .catch(e => console.error(e));
+        });
+
+        socket.on('ice-candidate', data => {
+            if (data.candidate) {
+                peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+                    .catch(e => console.error(e));
+            }
+        });
+
+        function startCall() {
+            peerConnection.createOffer()
+                .then(offer => {
+                    peerConnection.setLocalDescription(offer);
+                    socket.emit('offer', { offer });
+                });
         }
-    });
-
-    function startCall() {
-        peerConnection.createOffer()
-            .then(offer => {
-                peerConnection.setLocalDescription(offer);
-                socket.emit('offer', { offer });
-            });
-    }
 
 
-    function downloadCSV() {
-    const rows = [
-        ["time", "handIndex", "landmarkIndex", "x", "y", "z"]
-    ];
-    handMovements.forEach(move => {
-        move.landmarks.forEach((landmark, index) => {
-            rows.push([move.time, move.handIndex, index, landmark.x, landmark.y, landmark.z]);
-        });
-    });
 
-    let csvContent = "data:text/csv;charset=utf-8,";
-    rows.forEach(rowArray => {
-        let row = rowArray.join(",");
-        csvContent += row + "\r\n";
-    });
-
-    var encodedUri = encodeURI(csvContent);
-    var link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "hand_movements.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-// Additional logging or storing data points for the CSV file
-function logHandMovements(results) {
-    if (results.multiHandLandmarks) {
-        results.multiHandLandmarks.forEach((landmarks, index) => {
-            handMovements.push({
-                time: Date.now(),
-                handIndex: index,
-                landmarks: landmarks.map(l => ({x: l.x * canvasElement.width, y: l.y * canvasElement.height, z: l.z}))
+        function downloadCSV() {
+        const rows = [
+            ["time", "handIndex", "landmarkIndex", "x", "y", "z"]
+        ];
+        handMovements.forEach(move => {
+            move.landmarks.forEach((landmark, index) => {
+                rows.push([move.time, move.handIndex, index, landmark.x, landmark.y, landmark.z]);
             });
         });
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        rows.forEach(rowArray => {
+            let row = rowArray.join(",");
+            csvContent += row + "\r\n";
+        });
+
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "hand_movements.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
-}
 
-hands.onResults((results) => {
-    onResults(results);
-    logHandMovements(results); // Log data after drawing
-});
+    // Additional logging or storing data points for the CSV file
+    function logHandMovements(results) {
+        if (results.multiHandLandmarks) {
+            results.multiHandLandmarks.forEach((landmarks, index) => {
+                handMovements.push({
+                    time: Date.now(),
+                    handIndex: index,
+                    landmarks: landmarks.map(l => ({x: l.x * canvasElement.width, y: l.y * canvasElement.height, z: l.z}))
+                });
+            });
+        }
+    }
 
-    startCall();
+    hands.onResults((results) => {
+        onResults(results);
+        logHandMovements(results); // Log data after drawing
+    });
+
+        startCall();
 
 </script>
 </body>
