@@ -130,19 +130,22 @@
         
         function startVideo(videoElement) {
             navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                videoElement.srcObject = stream;
-                videoElement.play();
-                videoElement.onloadedmetadata = () => {
-                    canvasElement.width = videoElement.videoWidth;
-                    canvasElement.height = videoElement.videoHeight;
-                    predictHands();
-                };
-            })
-            .catch(error => {
-                console.error('Error opening video camera.', error);
-            });
+                .then(stream => {
+                    videoElement.srcObject = stream;
+                    localStream = stream;
+                    stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+                    videoElement.play();
+                    videoElement.onloadedmetadata = () => {
+                        canvasElement.width = videoElement.videoWidth;
+                        canvasElement.height = videoElement.videoHeight;
+                        predictHands();
+                    };
+                })
+                .catch(error => {
+                    console.error('Error opening video camera.', error);
+                });
         }
+
         
         function predictHands() {
             hands.send({image: localVideo});
@@ -169,16 +172,24 @@
             }
         };
 
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log('ICE Connection State Change:', peerConnection.iceConnectionState);
+        };
+
+
         // Existing socket event handlers and other code
         socket.on('offer', data => {
+            console.log('Received offer');  
             peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
                 .then(() => peerConnection.createAnswer())
                 .then(answer => {
+                    console.log('Sending answer');
                     peerConnection.setLocalDescription(answer);
                     socket.emit('answer', { answer });
                 })
-                .catch(e => console.error(e));
+                .catch(e => console.error('Error handling offer:', e));
         });
+
 
         socket.on('answer', data => {
             peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
