@@ -185,7 +185,8 @@
 
         // Existing socket event handlers and other code
         socket.on('offer', data => {
-            console.log('Received offer');  
+            console.log('Received offer'); 
+            console.log('data: ', data)
             peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
                 .then(() => peerConnection.createAnswer())
                 .then(answer => {
