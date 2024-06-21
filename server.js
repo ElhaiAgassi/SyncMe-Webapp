@@ -18,20 +18,22 @@ const io = socketIo(server, {
 // Serve static files from the root directory
 app.use(express.static(path.join(__dirname, '.')));
 
-io.on('connection', socket => {
-    console.log('New user connected');
+io.on('connection', (socket) => {
+    console.log('New client connected');
 
     socket.on('offer', (data) => {
+        console.log('Received offer, broadcasting...');
         socket.broadcast.emit('offer', data);
     });
 
     socket.on('answer', (data) => {
+        console.log('Received answer, broadcasting...');
         socket.broadcast.emit('answer', data);
     });
 
     socket.on('ice-candidate', (data) => {
+        console.log('Received ICE candidate, broadcasting...');
         socket.broadcast.emit('ice-candidate', data);
-    });
 
     socket.on('disconnect', () => {
         console.log('User disconnected');

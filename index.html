@@ -154,24 +154,29 @@
         
         // Function to start video stream
         function startVideo(videoElement) {
-            navigator.mediaDevices.getUserMedia({ video: true })
+            console.log('Attempting to start video...');
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
                 .then(stream => {
+                    console.log('Local stream obtained');
                     videoElement.srcObject = stream;
                     localStream = stream;
-                    // Add tracks from the stream to the peer connection
-                    stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+                    stream.getTracks().forEach(track => {
+                        console.log('Adding track to peer connection:', track.kind);
+                        peerConnection.addTrack(track, stream);
+                    });
                     videoElement.play();
                     videoElement.onloadedmetadata = () => {
+                        console.log('Video metadata loaded');
                         canvasElement.width = videoElement.videoWidth;
                         canvasElement.height = videoElement.videoHeight;
                         predictHands();
+                        startCall(); // Call startCall here after stream is ready
                     };
                 })
                 .catch(error => {
-                    console.error('Error opening video camera.', error);
+                    console.error('Error opening video camera:', error);
                 });
         }
-
         
         // Function to start hand detection
         function predictHands() {
@@ -180,10 +185,7 @@
         
         // Start the local video stream
         startVideo(localVideo);
-        
-        
-        // Initialize Socket.IO connection
-        const socket = io();  // Automatically connect to the host that serves the page
+
         // const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com');
         
         // Create RTCPeerConnection for WebRTC
@@ -193,27 +195,37 @@
 
         // Listen for tracks added to the peer connection
         peerConnection.ontrack = (event) => {
-            console.log('Remote track received');
-            if (!remoteVideo.srcObject || remoteVideo.srcObject.id !== event.streams[0].id) {
-                remoteVideo.srcObject = event.streams[0];
-                console.log('Remote video source set');
+            console.log('Received remote track', event.track.kind);
+            if (!remoteVideo.srcObject) {
+                remoteVideo.srcObject = new MediaStream();
             }
+            remoteVideo.srcObject.addTrack(event.track);
         };
 
         // Handle ICE candidates
         peerConnection.onicecandidate = event => {
             if (event.candidate) {
-                // Send the ICE candidate to the other peer
-                console.log('Sending ICE candidate');
+                console.log('New ICE candidate', event.candidate);
                 socket.emit('ice-candidate', { candidate: event.candidate });
             }
         };
 
-        // Log ICE connection state changes
         peerConnection.oniceconnectionstatechange = () => {
-            console.log('ICE Connection State Change:', peerConnection.iceConnectionState);
+        console.log('ICE connection state:', peerConnection.iceConnectionState);
         };
 
+        peerConnection.onsignalingstatechange = () => {
+        console.log('Signaling state:', peerConnection.signalingState);
+        };
+
+        // Initialize Socket.IO connection
+        const socket = io();  // Automatically connect to the host that serves the page
+        socket.on('connect', () => {
+            console.log('Socket.IO connected');
+        });
+        socket.on('disconnect', () => {
+            console.log('Socket.IO disconnected');
+        });
 
         // Handle incoming offer
         socket.on('offer', data => {
@@ -250,21 +262,23 @@
 
         // Function to initiate a call
         function startCall() {
+            console.log('Starting call...');
             if (localStream) {
                 peerConnection.createOffer()
                     .then(offer => {
+                        console.log('Offer created');
                         return peerConnection.setLocalDescription(offer);
                     })
                     .then(() => {
-                        console.log('Sending offer');
+                        console.log('Local description set, sending offer');
                         socket.emit('offer', { offer: peerConnection.localDescription });
                     })
-                    .catch(e => console.error('Error creating offer:', e));
+                    .catch(e => console.error('Error in startCall:', e));
             } else {
                 console.log('Waiting for local stream');
-                localVideo.onloadedmetadata = startCall;
             }
         }
+
 
         // Function to download hand movement data as CSV
         function downloadCSV() {
@@ -311,8 +325,8 @@
         logHandMovements(results); // Log data after drawing
     });
 
-        // Start the call
-        startCall();
+    // // Start the call
+    // startCall();
 
 </script>
 </body>
