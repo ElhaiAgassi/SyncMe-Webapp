@@ -8,11 +8,17 @@ const app = express();
 const server = http.createServer(app);
 
 // Setup CORS and Socket.IO
+const compression = require('compression');
+app.use(compression());
+
 const io = socketIo(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket'],
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
 // Serve static files from the root directory

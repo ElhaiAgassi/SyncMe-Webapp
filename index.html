@@ -189,9 +189,15 @@
         // const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com');
         
         // Create RTCPeerConnection for WebRTC
-        let peerConnection = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        const peerConnection = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+            iceTransportPolicy: 'all',
+            iceCandidatePoolSize: 10,
+            bundlePolicy: 'max-bundle',
+            rtcpMuxPolicy: 'require',
+            sdpSemantics: 'unified-plan'
         });
+
 
         // Listen for tracks added to the peer connection
         peerConnection.ontrack = (event) => {
@@ -218,8 +224,21 @@
         console.log('Signaling state:', peerConnection.signalingState);
         };
 
+        // Implement adaptive bitrate
+        peerConnection.addEventListener('iceconnectionstatechange', () => {
+            if (peerConnection.iceConnectionState === 'connected') {
+                peerConnection.getReceivers().forEach(receiver => {
+                    if (receiver.track.kind === 'video') {
+                        receiver.setParameters({
+                        degradationPreference: 'maintain-framerate'
+                        });
+                    }
+                });
+            }
+        });
+
         // Initialize Socket.IO connection
-        const socket = io();  // Automatically connect to the host that serves the page
+        const socket = io({transports: ['websocket']});;  // Automatically connect to the host that serves the page
         socket.on('connect', () => {
             console.log('Socket.IO connected');
         });
