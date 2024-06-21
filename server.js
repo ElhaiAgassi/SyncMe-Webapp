@@ -10,7 +10,7 @@ const server = http.createServer(app);
 // Setup CORS and Socket.IO
 const io = socketIo(server, {
     cors: {
-        origin: "https://powerful-caverns-44451-c8d559731987.herokuapp.com/",
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
@@ -34,6 +34,7 @@ io.on('connection', (socket) => {
     socket.on('ice-candidate', (data) => {
         console.log('Received ICE candidate, broadcasting...');
         socket.broadcast.emit('ice-candidate', data);
+    });
 
     socket.on('disconnect', () => {
         console.log('User disconnected');
