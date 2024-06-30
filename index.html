@@ -347,16 +347,17 @@
             logHandMovements(results);
         });
 
-        // Mute/Unmute functionality
-        const muteButton = document.getElementById('muteButton');
-        muteButton.addEventListener('click', () => {
-            const audioTracks = localStream.getAudioTracks();
-            if (audioTracks.length > 0) {
-                const isMuted = !audioTracks[0].enabled;
-                audioTracks.forEach(track => track.enabled = isMuted);
-                muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
-            }
-        });
+       // Mute/Unmute functionality
+const muteButton = document.getElementById('muteButton');
+muteButton.addEventListener('click', () => {
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+        const isCurrentlyMuted = !audioTracks[0].enabled;
+        audioTracks.forEach(track => track.enabled = !isCurrentlyMuted);
+        muteButton.textContent = isCurrentlyMuted ? 'Mute' : 'Unmute';
+    }
+});
+
 
         // Turn On/Off Camera functionality
         const cameraButton = document.getElementById('cameraButton');
