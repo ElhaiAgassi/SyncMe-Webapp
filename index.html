@@ -330,20 +330,20 @@
         // Initialize video and hand tracking
         startVideo(localVideo);
 
-        // Mute/unmute functionality
-        const muteButton = document.getElementById('muteButton');
-        let isMuted = true;
+       // Mute/unmute functionality
+       const muteButton = document.getElementById('muteButton');
+       let isMuted = false;
 
         muteButton.addEventListener('click', () => {
-            if (localStream) {
-                const audioTracks = localStream.getAudioTracks();
-                if (audioTracks.length > 0) {
-                    isMuted = !isMuted;
-                    audioTracks[0].enabled = !isMuted;
-                    muteButton.textContent = isMuted ? 'Mute' : 'Unmute';
-                }
+        if (localStream) {
+            const audioTracks = localStream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                isMuted = !isMuted;
+                audioTracks[0].enabled = !isMuted;
+                muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
             }
-        });
+        }
+    });
 
         // Toggle camera functionality
         const cameraButton = document.getElementById('cameraButton');
