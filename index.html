@@ -50,7 +50,7 @@
         
         #localVideo-wrapper video,
         #localVideo-wrapper canvas {
-            justify-content: center;
+            /* justify-content: center; */
             align-items: center;
             position: absolute;
             top: 0;
@@ -195,7 +195,9 @@
     }
 
     // Create RTCPeerConnection for WebRTC
-    let peerConnection;
+    
+let peerConnection;
+let isOfferer = false; // Flag to track if this peer is the offerer
 
     function setupPeerConnection() {
         peerConnection = new RTCPeerConnection({
@@ -261,48 +263,52 @@
 
     // Initialize Socket.IO connection
     const socket = io({transports: ['websocket']});
+
     socket.on('connect', () => {
         console.log('Socket.IO connected');
         updateStatus('Connected to signaling server');
-    });
-    socket.on('disconnect', () => {
-        console.log('Socket.IO disconnected');
-        updateStatus('Disconnected from signaling server');
+        // Determine if this peer should create the offer
+        socket.emit('ready');
     });
 
-    // Handle incoming offer
-    socket.on('offer', data => {
+    socket.on('ready', () => {
+        if (!isOfferer) {
+            isOfferer = true;
+            createAndSendOffer();
+        }
+    });
+
+    socket.on('offer', async (data) => {
         if (!peerConnection) {
             console.error('PeerConnection not initialized when receiving offer');
             updateStatus('Error: PeerConnection not initialized');
             return;
         }
-        peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
-            .then(() => peerConnection.createAnswer())
-            .then(answer => {
-                peerConnection.setLocalDescription(answer);
-                socket.emit('answer', { answer });
-                updateStatus('Answered incoming call');
-            })
-            .catch(e => {
-                console.error('Error handling offer:', e);
-                updateStatus('Error handling incoming call');
-            });
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer', { answer });
+            updateStatus('Answered incoming call');
+        } catch (e) {
+            console.error('Error handling offer:', e);
+            updateStatus('Error handling incoming call');
+        }
     });
 
-    // Handle incoming answer
-    socket.on('answer', data => {
+    socket.on('answer', async (data) => {
         if (!peerConnection) {
             console.error('PeerConnection not initialized when receiving answer');
             updateStatus('Error: PeerConnection not initialized');
             return;
         }
-        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-            .then(() => updateStatus('Call connected'))
-            .catch(e => {
-                console.error('Error setting remote description with answer', e);
-                updateStatus('Error connecting call');
-            });
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            updateStatus('Call connected');
+        } catch (e) {
+            console.error('Error setting remote description with answer:', e);
+            updateStatus('Error connecting call');
+        }
     });
 
     // Handle incoming ICE candidates
@@ -323,28 +329,24 @@
     });
 
     // Function to initiate a call
-    function startCall() {
-        console.log('Starting call...');
-        updateStatus('Initiating call...');
+        async function createAndSendOffer() {
+        console.log('Creating offer...');
+        updateStatus('Creating offer...');
         if (!peerConnection) {
-            console.error('PeerConnection not initialized when starting call');
+            console.error('PeerConnection not initialized when creating offer');
             updateStatus('Error: PeerConnection not initialized');
             return;
         }
-        peerConnection.createOffer()
-            .then(offer => {
-                console.log('Offer created');
-                return peerConnection.setLocalDescription(offer);
-            })
-            .then(() => {
-                console.log('Local description set, sending offer');
-                socket.emit('offer', { offer: peerConnection.localDescription });
-                updateStatus('Call offer sent');
-            })
-            .catch(e => {
-                console.error('Error in startCall:', e);
-                updateStatus('Error starting call');
-            });
+        try {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            console.log('Local description set, sending offer');
+            socket.emit('offer', { offer: peerConnection.localDescription });
+            updateStatus('Offer sent');
+        } catch (e) {
+            console.error('Error in createAndSendOffer:', e);
+            updateStatus('Error creating offer');
+        }
     }
 
     // Function to update status for user feedback
