@@ -145,13 +145,18 @@
                     // Draw hand connections
                     drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
                     // Draw hand landmarks
-                    drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
+                    drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 3});
                 }
             }
             canvasCtx.restore();
             requestAnimationFrame(predictHands); // Continuously request frames for prediction
         }
         
+        // Function to start hand detection
+        function predictHands() {
+            hands.send({image: localVideo});
+        }
+
         // Function to start video stream
         function startVideo(videoElement) {
             console.log('Attempting to start video...');
@@ -175,18 +180,32 @@
                 })
                 .catch(error => {
                     console.error('Error opening video camera:', error);
-                });
+            });
         }
-        
-        // Function to start hand detection
-        function predictHands() {
-            hands.send({image: localVideo});
+            
+        // Function to initiate a call
+        function startCall() {
+            console.log('Starting call...');
+            if (localStream) {
+                peerConnection.createOffer()
+                    .then(offer => {
+                        console.log('Offer created');
+                        return peerConnection.setLocalDescription(offer);
+                    })
+                    .then(() => {
+                        console.log('Local description set, sending offer');
+                        socket.emit('offer', { offer: peerConnection.localDescription });
+                    })
+                    .catch(e => console.error('Error in startCall:', e));
+            } else {
+                console.log('Waiting for local stream');
+            }
         }
-        
+            
         // Start the local video stream
         startVideo(localVideo);
 
-        // const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com');
+        // It follows the flow: create connection → set up listeners → initiate or receive call → exchange ICE candidates → establish connection → manage media streams.
         
         // Create RTCPeerConnection for WebRTC
         const peerConnection = new RTCPeerConnection({
@@ -278,74 +297,56 @@
             }
         });
 
-        // Function to initiate a call
-        function startCall() {
-            console.log('Starting call...');
-            if (localStream) {
-                peerConnection.createOffer()
-                    .then(offer => {
-                        console.log('Offer created');
-                        return peerConnection.setLocalDescription(offer);
-                    })
-                    .then(() => {
-                        console.log('Local description set, sending offer');
-                        socket.emit('offer', { offer: peerConnection.localDescription });
-                    })
-                    .catch(e => console.error('Error in startCall:', e));
-            } else {
-                console.log('Waiting for local stream');
-            }
-        }
 
 
         // Function to download hand movement data as CSV
         function downloadCSV() {
-        const rows = [
-            ["time", "handIndex", "landmarkIndex", "x", "y", "z"]
-        ];
-        handMovements.forEach(move => {
-            move.landmarks.forEach((landmark, index) => {
-                rows.push([move.time, move.handIndex, index, landmark.x, landmark.y, landmark.z]);
-            });
-        });
-
-        let csvContent = "data:text/csv;charset=utf-8,";
-        rows.forEach(rowArray => {
-            let row = rowArray.join(",");
-            csvContent += row + "\r\n";
-        });
-
-        var encodedUri = encodeURI(csvContent);
-        var link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "hand_movements.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    // Function to log hand movements
-    function logHandMovements(results) {
-        if (results.multiHandLandmarks) {
-            results.multiHandLandmarks.forEach((landmarks, index) => {
-                handMovements.push({
-                    time: Date.now(),
-                    handIndex: index,
-                    landmarks: landmarks.map(l => ({x: l.x * canvasElement.width, y: l.y * canvasElement.height, z: l.z}))
+            const rows = [
+                ["time", "handIndex", "landmarkIndex", "x", "y", "z"]
+            ];
+            handMovements.forEach(move => {
+                move.landmarks.forEach((landmark, index) => {
+                    rows.push([move.time, move.handIndex, index, landmark.x, landmark.y, landmark.z]);
                 });
             });
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            rows.forEach(rowArray => {
+                let row = rowArray.join(",");
+                csvContent += row + "\r\n";
+            });
+
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "hand_movements.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
-    }
 
-    // Set up hand detection results handler
-    hands.onResults((results) => {
-        onResults(results);
-        logHandMovements(results); // Log data after drawing
-    });
+        // Function to log hand movements
+        function logHandMovements(results) {
+            if (results.multiHandLandmarks) {
+                results.multiHandLandmarks.forEach((landmarks, index) => {
+                    handMovements.push({
+                        time: Date.now(),
+                        handIndex: index,
+                        landmarks: landmarks.map(l => ({x: l.x * canvasElement.width, y: l.y * canvasElement.height, z: l.z}))
+                    });
+                });
+            }
+        }
 
-    // // Start the call
-    // startCall();
+        // Set up hand detection results handler
+        hands.onResults((results) => {
+            onResults(results);
+            logHandMovements(results); // Log data after drawing
+        });
 
-</script>
-</body>
+        // // Start the call
+        // startCall();
+
+        </script>
+    </body>
 </html>
