@@ -12,7 +12,7 @@
     <!-- Load Socket.IO client for real-time communication -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
     <style>
-        /* CSS to ensure full viewport coverage and remove margins/padding */
+             /* CSS to ensure full viewport coverage and remove margins/padding */
         body, html {
             margin: 0;
             padding: 0;
@@ -20,19 +20,20 @@
             width: 100%;
             overflow: hidden;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             background-color: #f0f0f0;
         }
-        /* Container for both local and remote video elements */
+                /* Container for both local and remote video elements */
         #video-container {
             display: flex;
             width: 100%;
-            height: 100%;
+            height: 80%;
             background-color: #ffffff;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-        /* Styling for each video wrapper */
+           /* Styling for each video wrapper */
         .video-wrapper {
             width: 50%;
             height: 100%;
@@ -41,8 +42,12 @@
             align-items: center;
             background-color: #f0f0f0;
             position: relative;
+            border: 2px solid transparent; /* Initial border style */
         }
-        /* Pseudo-element for displaying video labels */
+        .video-wrapper.active {
+            border-color: lime; /* Active speaker highlight color */
+        }
+         /* Pseudo-element for displaying video labels */
         .video-wrapper::before {
             content: "";
             position: absolute;
@@ -52,30 +57,27 @@
             font-size: 24px;
             color: #888888;
         }
-        /* Styling for video elements */
+          /* Styling for video elements */
         video {
             width: 100%;
             height: 100%;
             object-fit: contain;
             position: absolute;
-            /* transform: scaleX(-1); */
         }
-        /* Mirror the local video */
+         /* Mirror the local video */
         #localVideo {
             transform: scaleX(-1);
         }
-        /* Labels for local and remote video */
+          /* Labels for local and remote video */
         #localVideo-wrapper::before {
             content: "Local Video";
         }
         #remoteVideo-wrapper::before {
             content: "Remote Video";
-            object-fit: contain;
         }
-        /* Styling for the canvas overlay (hand tracking visualization) */
+             /* Styling for the canvas overlay (hand tracking visualization) */
         #outputCanvas {
             position: absolute;
-            object-fit: contain;
             top: 0;
             left: 0;
             width: 100%;
@@ -84,42 +86,61 @@
             pointer-events: none;
             transform: scaleX(-1);
         }
-        /* Positioning for the download button */
-        #downloadButton {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            z-index: 2;
+        #controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 20%;
+            background-color: #333;
+            color: white;
+        }
+        .control-button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            background-color: #555;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            color: white;
+        }
+        .control-button:hover {
+            background-color: #777;
         }
     </style>
 </head>
 <body>
-    <!-- Container for video elements -->
+       <!-- Container for video elements -->
     <div id="video-container">
-        <!-- Wrapper for local video and hand tracking canvas -->
         <div class="video-wrapper" id="localVideo-wrapper">
             <video id="localVideo" autoplay playsinline muted></video>
             <canvas id="outputCanvas"></canvas>
         </div>
-        <!-- Wrapper for remote video -->
+             <!-- Wrapper for remote video -->
         <div class="video-wrapper" id="remoteVideo-wrapper">
             <video id="remoteVideo" autoplay playsinline></video>
         </div>
     </div>
-    <!-- Button to trigger CSV download of hand movement data -->
-    <button id="downloadButton" onclick="downloadCSV()">Download CSV</button>
+    <div id="controls">
+        <button class="control-button" id="muteButton">Mute</button>
+        <button class="control-button" id="cameraButton">Turn Off Camera</button>
+        <button class="control-button" id="downloadButton" onclick="downloadCSV()">Download CSV</button>
+    </div>
+    
     <script>
-        // Get references to HTML elements
+         // Get references to HTML elements
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
         const canvasElement = document.getElementById('outputCanvas');
         const canvasCtx = canvasElement.getContext('2d');
-        
-        let localStream;
-        let handMovements = []; // Array to store hand movement data
-        const loggingInterval = 5000; // Time in ms between logs, changed from 500000 for demo
+        const videoWrappers = document.querySelectorAll('.video-wrapper');
 
-        // Initialize MediaPipe Hands
+        let localStream;
+        let handMovements = [];// Array to store hand movement data
+        const loggingInterval = 5000;// Time in ms between logs, changed from 500000 for demo
+
+            // Initialize MediaPipe Hands
         const hands = new Hands({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         });
@@ -131,64 +152,57 @@
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
-        
-        // Set the callback function for hand detection results
+
+          // Set the callback function for hand detection results
         hands.onResults(onResults);
-        
-        // Function to handle hand detection results
+
+               // Function to handle hand detection results
         function onResults(results) {
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
             if (results.multiHandLandmarks) {
                 for (const landmarks of results.multiHandLandmarks) {
-                    // Draw hand connections
+                       // Draw hand connections
                     drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
-                    // Draw hand landmarks
+                        // Draw hand landmarks
                     drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
                 }
             }
             canvasCtx.restore();
-            requestAnimationFrame(predictHands); // Continuously request frames for prediction
+            requestAnimationFrame(predictHands);
         }
-        
-        // Function to start video stream
+
+          // Function to start video stream
         function startVideo(videoElement) {
-            console.log('Attempting to start video...');
             navigator.mediaDevices.getUserMedia({ video: true, audio: true })
                 .then(stream => {
-                    console.log('Local stream obtained');
                     videoElement.srcObject = stream;
                     localStream = stream;
                     stream.getTracks().forEach(track => {
-                        console.log('Adding track to peer connection:', track.kind);
                         peerConnection.addTrack(track, stream);
                     });
                     videoElement.play();
                     videoElement.onloadedmetadata = () => {
-                        console.log('Video metadata loaded');
                         canvasElement.width = videoElement.videoWidth;
                         canvasElement.height = videoElement.videoHeight;
                         predictHands();
-                        startCall(); // Call startCall here after stream is ready
+                        startCall();  // Call startCall here after stream is ready
                     };
                 })
                 .catch(error => {
                     console.error('Error opening video camera:', error);
                 });
         }
-        
-        // Function to start hand detection
+            // Function to start hand detection
         function predictHands() {
             hands.send({image: localVideo});
         }
-        
-        // Start the local video stream
+
+           // Start the local video stream
         startVideo(localVideo);
 
-        // const socket = io.connect('https://powerful-caverns-44451-c8d559731987.herokuapp.com');
-        
-        // Create RTCPeerConnection for WebRTC
+         // Create RTCPeerConnection for WebRTC
         const peerConnection = new RTCPeerConnection({
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
             iceTransportPolicy: 'all',
@@ -198,17 +212,15 @@
             sdpSemantics: 'unified-plan'
         });
 
-
-        // Listen for tracks added to the peer connection
+         // Listen for tracks added to the peer connection
         peerConnection.ontrack = (event) => {
-            console.log('Received remote track', event.track.kind);
             if (!remoteVideo.srcObject) {
                 remoteVideo.srcObject = new MediaStream();
             }
             remoteVideo.srcObject.addTrack(event.track);
         };
 
-        // Handle ICE candidates
+             // Handle ICE candidates
         peerConnection.onicecandidate = event => {
             if (event.candidate) {
                 socket.emit('ice-candidate', { candidate: event.candidate });
@@ -216,20 +228,20 @@
         };
 
         peerConnection.oniceconnectionstatechange = () => {
-        console.log('ICE connection state:', peerConnection.iceConnectionState);
+            console.log('ICE connection state:', peerConnection.iceConnectionState);
         };
 
         peerConnection.onsignalingstatechange = () => {
-        console.log('Signaling state:', peerConnection.signalingState);
+            console.log('Signaling state:', peerConnection.signalingState);
         };
 
-        // Implement adaptive bitrate
+              // Implement adaptive bitrate
         peerConnection.addEventListener('iceconnectionstatechange', () => {
             if (peerConnection.iceConnectionState === 'connected') {
                 peerConnection.getReceivers().forEach(receiver => {
                     if (receiver.track.kind === 'video') {
                         receiver.setParameters({
-                        degradationPreference: 'maintain-framerate'
+                            degradationPreference: 'maintain-framerate'
                         });
                     }
                 });
@@ -237,7 +249,7 @@
         });
 
         // Initialize Socket.IO connection
-        const socket = io({transports: ['websocket']});;  // Automatically connect to the host that serves the page
+        const socket = io({transports: ['websocket']}); // Automatically connect to the host that serves the page
         socket.on('connect', () => {
             console.log('Socket.IO connected');
         });
@@ -247,33 +259,26 @@
 
         // Handle incoming offer
         socket.on('offer', data => {
-            console.log('Received offer'); 
-            console.log('data: ', data)
             peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
                 .then(() => peerConnection.createAnswer())
                 .then(answer => {
-                    console.log('Sending answer');
                     peerConnection.setLocalDescription(answer);
                     socket.emit('answer', { answer });
                 })
                 .catch(e => console.error('Error handling offer:', e));
         });
 
-        // Handle incoming answer
+         // Handle incoming answer
         socket.on('answer', data => {
-            console.log('Received answer');
             peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-                .then(() => console.log('Remote description set with answer'))
                 .catch(e => console.error('Error setting remote description with answer', e));
         });
 
         // Handle incoming ICE candidates
         socket.on('ice-candidate', data => {
-            console.log('Receiving ICE candidate');
             if (data.candidate) {
                 let candidate = new RTCIceCandidate(data.candidate);
                 peerConnection.addIceCandidate(candidate)
-                    .then(() => console.log('ICE Candidate Added'))
                     .catch(e => console.error('Error adding received ICE candidate', e));
             }
         });
@@ -297,55 +302,88 @@
             }
         }
 
-
-        // Function to download hand movement data as CSV
+         // Function to download hand movement data as CSV
         function downloadCSV() {
-        const rows = [
-            ["time", "handIndex", "landmarkIndex", "x", "y", "z"]
-        ];
-        handMovements.forEach(move => {
-            move.landmarks.forEach((landmark, index) => {
-                rows.push([move.time, move.handIndex, index, landmark.x, landmark.y, landmark.z]);
-            });
-        });
-
-        let csvContent = "data:text/csv;charset=utf-8,";
-        rows.forEach(rowArray => {
-            let row = rowArray.join(",");
-            csvContent += row + "\r\n";
-        });
-
-        var encodedUri = encodeURI(csvContent);
-        var link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "hand_movements.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    // Function to log hand movements
-    function logHandMovements(results) {
-        if (results.multiHandLandmarks) {
-            results.multiHandLandmarks.forEach((landmarks, index) => {
-                handMovements.push({
-                    time: Date.now(),
-                    handIndex: index,
-                    landmarks: landmarks.map(l => ({x: l.x * canvasElement.width, y: l.y * canvasElement.height, z: l.z}))
+            const rows = [
+                ["time", "handIndex", "landmarkIndex", "x", "y", "z"]
+            ];
+            handMovements.forEach(move => {
+                move.landmarks.forEach((landmark, index) => {
+                    rows.push([move.time, move.handIndex, index, landmark.x, landmark.y, landmark.z]);
                 });
             });
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            rows.forEach(rowArray => {
+                let row = rowArray.join(",");
+                csvContent += row + "\r\n";
+            });
+
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "hand_movements.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
-    }
 
-    // Set up hand detection results handler
-    hands.onResults((results) => {
-        onResults(results);
-        logHandMovements(results); // Log data after drawing
-    });
+        // Function to log hand movements
+        function logHandMovements(results) {
+            if (results.multiHandLandmarks) {
+                results.multiHandLandmarks.forEach((landmarks, index) => {
+                    handMovements.push({
+                        time: Date.now(),
+                        handIndex: index,
+                        landmarks: landmarks.map(l => ({x: l.x * canvasElement.width, y: l.y * canvasElement.height, z: l.z}))
+                    });
+                });
+            }
+        }
 
-    // // Start the call
-    // startCall();
+        // Set up hand detection results handler
+        hands.onResults((results) => {
+            onResults(results);
+            logHandMovements(results);
+        });
 
-</script>
+        // Mute/Unmute functionality
+        const muteButton = document.getElementById('muteButton');
+        muteButton.addEventListener('click', () => {
+            const audioTracks = localStream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                const isMuted = !audioTracks[0].enabled;
+                audioTracks.forEach(track => track.enabled = isMuted);
+                muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+            }
+        });
+
+        // Turn On/Off Camera functionality
+        const cameraButton = document.getElementById('cameraButton');
+        cameraButton.addEventListener('click', () => {
+            const videoTracks = localStream.getVideoTracks();
+            if (videoTracks.length > 0) {
+                const isCameraOff = !videoTracks[0].enabled;
+                videoTracks.forEach(track => track.enabled = isCameraOff);
+                cameraButton.textContent = isCameraOff ? 'Turn On Camera' : 'Turn Off Camera';
+            }
+        });
+
+        // Active speaker highlight functionality
+        let activeVideo = localVideo; // Assume local video is initially active
+        videoWrappers.forEach(wrapper => {
+            wrapper.addEventListener('click', () => {
+                // Remove active class from all wrappers
+                videoWrappers.forEach(w => w.classList.remove('active'));
+                // Add active class to clicked wrapper
+                wrapper.classList.add('active');
+                // Update active video based on wrapper clicked
+                activeVideo = wrapper.id === 'localVideo-wrapper' ? localVideo : remoteVideo;
+            });
+        });
+
+        // Start the call
+        startCall();
+    </script>
 </body>
 </html>
