@@ -22,7 +22,45 @@
             flex-direction: column;
             background-color: #f0f0f0;
         }
-        
+
+        #controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 10px 0;
+            background-color: #333;
+            color: white;
+            position: fixed;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .control-button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            background-color: #555;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            color: white;
+        }
+
+        .control-button:hover {
+            background-color: #777;
+        }
+
+        #video-container {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            height: calc(100vh - 50px); /* Adjust based on your controls height */
+            margin-top: 50px; /* Height of the control bar */
+        }
+
         .video-wrapper {
             flex: 1;
             display: flex;
@@ -32,10 +70,9 @@
             position: relative;
             border: 2px solid transparent;
             overflow: hidden;
-            height: 0;
-            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            height: 100%; /* Full height of container */
         }
-    
+
         .video-wrapper.active {
             border-color: lime;
         }
@@ -48,22 +85,13 @@
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Changed from cover to contain */
+            object-fit: contain;
         }
 
         #localVideo {
             transform: scaleX(-1);
         }
-        
-        #video-container {
-            display: flex;
-            flex: 1;
-            width: 100%;
-            background-color: #ffffff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            height: calc(100vh - 50px); /* Adjust based on your controls height */
-        }
-        
+
         #outputCanvas {
             position: absolute;
             top: 0;
@@ -74,395 +102,299 @@
             pointer-events: none;
             transform: scaleX(-1);
         }
-
-        #controls {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            padding: 10px 0;
-            background-color: #333;
-            color: white;
-        }
-    
-        .control-button {
-            margin: 0 10px;
-            padding: 10px 20px;
-            background-color: #555;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            color: white;
-        }
-    
-        .control-button:hover {
-            background-color: #777;
-        }
     </style>
 </head>
 <body>
-       <!-- Container for video elements -->
-    <div id="video-container">
-        <div class="video-wrapper" id="localVideo-wrapper">
-            <video id="localVideo" autoplay playsinline muted></video>
-            <canvas id="outputCanvas"></canvas>
-        </div>
-             <!-- Wrapper for remote video -->
-        <div class="video-wrapper" id="remoteVideo-wrapper">
-            <video id="remoteVideo" autoplay playsinline></video>
-        </div>
-    </div>
     <div id="controls">
         <button class="control-button" id="muteButton">Mute</button>
         <button class="control-button" id="cameraButton">Turn Off Camera</button>
         <button class="control-button" id="downloadButton" onclick="downloadCSV()">Download CSV</button>
     </div>
+    <!-- Container for video elements -->
+    <div id="video-container">
+        <div class="video-wrapper" id="localVideo-wrapper">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <canvas id="outputCanvas"></canvas>
+        </div>
+        <!-- Wrapper for remote video -->
+        <div class="video-wrapper" id="remoteVideo-wrapper">
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+    </div>
     
     <script>
-         const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
-    const canvasElement = document.getElementById('outputCanvas');
-    const canvasCtx = canvasElement.getContext('2d');
-    const videoWrappers = document.querySelectorAll('.video-wrapper');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const canvasElement = document.getElementById('outputCanvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const videoWrappers = document.querySelectorAll('.video-wrapper');
 
-    let localStream;
-    let handMovements = []; // Array to store hand movement data
-    const loggingInterval = 5000; // Time in ms between logs, changed from 500000 for demo
+        let localStream;
+        let handMovements = []; // Array to store hand movement data
+        const loggingInterval = 5000; // Time in ms between logs, changed from 500000 for demo
 
-    // Initialize MediaPipe Hands
-    const hands = new Hands({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
+        // Initialize MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
 
-    // Configure hand detection options
-    hands.setOptions({
-        maxNumHands: 4,
-        modelComplexity: 1,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-    });
+        // Configure hand detection options
+        hands.setOptions({
+            maxNumHands: 4,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
 
-    // Set the callback function for hand detection results
-    hands.onResults(onResults);
+        // Set the callback function for hand detection results
+        hands.onResults(onResults);
 
-    // Function to handle hand detection results
-    function onResults(results) {
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-        if (results.multiHandLandmarks) {
-            for (const landmarks of results.multiHandLandmarks) {
-                // Draw hand connections
-                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
-                // Draw hand landmarks
-                drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 3});
+        // Function to handle hand detection results
+        function onResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    // Draw hand connections
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
+                    // Draw hand landmarks
+                    drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 3});
+                }
             }
+            canvasCtx.restore();
+            requestAnimationFrame(predictHands);
         }
-        canvasCtx.restore();
-        requestAnimationFrame(predictHands);
-    }
-    
-    // Function to start hand detection
-    function predictHands() {
-        hands.send({image: localVideo});
-    }
 
-    // Function to start video stream
-    function startVideo(videoElement) {
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .then(stream => {
-                videoElement.srcObject = stream;
-                localStream = stream;
-                videoElement.play();
-                videoElement.onloadedmetadata = () => {
-                    canvasElement.width = videoElement.videoWidth;
-                    canvasElement.height = videoElement.videoHeight;
-                    predictHands();
-                    setupPeerConnection(); // Set up peer connection after stream is ready
-                };
-            })
-            .catch(error => {
-                console.error('Error opening video camera:', error);
-            });
-    }
+        // Function to start hand detection
+        function predictHands() {
+            hands.send({image: localVideo});
+        }
 
-    // Create RTCPeerConnection for WebRTC
-    
-let peerConnection;
-let isOfferer = false; // Flag to track if this peer is the offerer
-
-    function setupPeerConnection() {
-        peerConnection = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-            iceTransportPolicy: 'all',
-            iceCandidatePoolSize: 10,
-            bundlePolicy: 'max-bundle',
-            rtcpMuxPolicy: 'require',
-            sdpSemantics: 'unified-plan'
-        });
-
-        localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
-        });
-
-        peerConnection.ontrack = (event) => {
-            if (!remoteVideo.srcObject) {
-                remoteVideo.srcObject = new MediaStream();
-            }
-            remoteVideo.srcObject.addTrack(event.track);
-        };
-
-        peerConnection.onicecandidate = event => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', { candidate: event.candidate });
-            }
-        };
-
-        peerConnection.oniceconnectionstatechange = () => {
-            console.log('ICE connection state:', peerConnection.iceConnectionState);
-            updateConnectionStatus(peerConnection.iceConnectionState);
-        };
-
-        peerConnection.onsignalingstatechange = () => {
-            console.log('Signaling state:', peerConnection.signalingState);
-        };
-
-        peerConnection.addEventListener('iceconnectionstatechange', () => {
-            if (peerConnection.iceConnectionState === 'connected') {
-                peerConnection.getSenders().forEach(sender => {
-                    if (sender.track && sender.track.kind === 'video') {
-                        const parameters = sender.getParameters();
-                        if (!parameters.encodings) {
-                            parameters.encodings = [{}];
-                        }
-                        parameters.encodings[0].maxBitrate = 1000000; // 1 Mbps
-                        sender.setParameters(parameters)
-                            .then(() => {
-                                console.log('Adaptive bitrate settings applied');
-                                updateStatus('Adaptive bitrate settings applied');
-                            })
-                            .catch(e => {
-                                console.error('Error setting adaptive bitrate:', e);
-                                updateStatus('Failed to apply adaptive bitrate settings');
-                            });
-                    }
+        // Function to start video stream
+        function startVideo(videoElement) {
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then(stream => {
+                    videoElement.srcObject = stream;
+                    localStream = stream;
+                    videoElement.play();
+                    videoElement.onloadedmetadata = () => {
+                        canvasElement.width = videoElement.videoWidth;
+                        canvasElement.height = videoElement.videoHeight;
+                        predictHands();
+                        setupPeerConnection(); // Set up peer connection after stream is ready
+                    };
+                })
+                .catch(error => {
+                    console.error('Error opening video camera:', error);
                 });
-            }
-        });
+        }
 
-        createAndSendOffer();
-    }
+        // Create RTCPeerConnection for WebRTC
+        let peerConnection;
+        let isOfferer = false; // Flag to track if this peer is the offerer
 
-    // Initialize Socket.IO connection
-    const socket = io({transports: ['websocket']});
+        function setupPeerConnection() {
+            peerConnection = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+                iceTransportPolicy: 'all',
+                iceCandidatePoolSize: 10,
+                bundlePolicy: 'max-bundle',
+                rtcpMuxPolicy: 'require',
+                sdpSemantics: 'unified-plan'
+            });
 
-    socket.on('connect', () => {
-        console.log('Socket.IO connected');
-        updateStatus('Connected to signaling server');
-        // Determine if this peer should create the offer
-        socket.emit('ready');
-    });
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
 
-    socket.on('ready', () => {
-        if (!isOfferer) {
-            isOfferer = true;
+            peerConnection.ontrack = (event) => {
+                if (!remoteVideo.srcObject) {
+                    remoteVideo.srcObject = new MediaStream();
+                }
+                remoteVideo.srcObject.addTrack(event.track);
+            };
+
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    socket.emit('ice-candidate', { candidate: event.candidate });
+                }
+            };
+
+            peerConnection.oniceconnectionstatechange = () => {
+                console.log('ICE connection state:', peerConnection.iceConnectionState);
+                updateConnectionStatus(peerConnection.iceConnectionState);
+            };
+
+            peerConnection.onsignalingstatechange = () => {
+                console.log('Signaling state:', peerConnection.signalingState);
+            };
+
+            peerConnection.addEventListener('iceconnectionstatechange', () => {
+                if (peerConnection.iceConnectionState === 'connected') {
+                    peerConnection.getSenders().forEach(sender => {
+                        if (sender.track && sender.track.kind === 'video') {
+                            const parameters = sender.getParameters();
+                            if (!parameters.encodings) {
+                                parameters.encodings = [{}];
+                            }
+                            parameters.encodings[0].maxBitrate = 1000000; // 1 Mbps
+                            sender.setParameters(parameters)
+                                .then(() => {
+                                    console.log('Adaptive bitrate settings applied');
+                                    updateStatus('Adaptive bitrate settings applied');
+                                })
+                                .catch(e => {
+                                    console.error('Error setting adaptive bitrate:', e);
+                                    updateStatus('Failed to apply adaptive bitrate settings');
+                                });
+                        }
+                    });
+                }
+            });
+
             createAndSendOffer();
         }
-    });
 
-    socket.on('offer', async (data) => {
-        if (!peerConnection) {
-            console.error('PeerConnection not initialized when receiving offer');
-            updateStatus('Error: PeerConnection not initialized');
-            return;
-        }
-        try {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            socket.emit('answer', { answer });
-            updateStatus('Answered incoming call');
-        } catch (e) {
-            console.error('Error handling offer:', e);
-            updateStatus('Error handling incoming call');
-        }
-    });
+        // Initialize Socket.IO connection
+        const socket = io({transports: ['websocket']});
 
-    socket.on('answer', async (data) => {
-        if (!peerConnection) {
-            console.error('PeerConnection not initialized when receiving answer');
-            updateStatus('Error: PeerConnection not initialized');
-            return;
-        }
-        try {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-            updateStatus('Call connected');
-        } catch (e) {
-            console.error('Error setting remote description with answer:', e);
-            updateStatus('Error connecting call');
-        }
-    });
+        socket.on('connect', () => {
+            console.log('Socket.IO connected');
+            updateStatus('Connected to signaling server');
+            // Determine if this peer should create the offer
+            socket.emit('ready');
+        });
 
-    // Handle incoming ICE candidates
-    socket.on('ice-candidate', data => {
-        if (!peerConnection) {
-            console.error('PeerConnection not initialized when receiving ICE candidate');
-            updateStatus('Error: PeerConnection not initialized');
-            return;
-        }
-        if (data.candidate) {
-            let candidate = new RTCIceCandidate(data.candidate);
-            peerConnection.addIceCandidate(candidate)
+        socket.on('ready', () => {
+            if (!isOfferer) {
+                isOfferer = true;
+                createAndSendOffer();
+            }
+        });
+
+        socket.on('offer', async (offer) => {
+            if (!isOfferer) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('answer', { answer });
+            }
+        });
+
+        socket.on('answer', async (answer) => {
+            if (isOfferer) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            }
+        });
+
+        socket.on('ice-candidate', async (candidate) => {
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (e) {
+                console.error('Error adding received ICE candidate:', e);
+            }
+        });
+
+        function createAndSendOffer() {
+            peerConnection.createOffer()
+                .then(offer => {
+                    return peerConnection.setLocalDescription(offer);
+                })
+                .then(() => {
+                    socket.emit('offer', { offer: peerConnection.localDescription });
+                })
                 .catch(e => {
-                    console.error('Error adding received ICE candidate', e);
-                    updateStatus('Error adding ICE candidate');
+                    console.error('Error creating or sending offer:', e);
                 });
         }
-    });
 
-    // Function to initiate a call
-        async function createAndSendOffer() {
-        console.log('Creating offer...');
-        updateStatus('Creating offer...');
-        if (!peerConnection) {
-            console.error('PeerConnection not initialized when creating offer');
-            updateStatus('Error: PeerConnection not initialized');
-            return;
-        }
-        try {
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-            console.log('Local description set, sending offer');
-            socket.emit('offer', { offer: peerConnection.localDescription });
-            updateStatus('Offer sent');
-        } catch (e) {
-            console.error('Error in createAndSendOffer:', e);
-            updateStatus('Error creating offer');
-        }
-    }
-
-    // Function to update status for user feedback
-    function updateStatus(message) {
-        const statusElement = document.getElementById('status');
-        if (statusElement) {
-            statusElement.textContent = message;
-        } else {
-            console.log('Status update:', message);
-        }
-    }
-
-    // Function to update connection status
-    function updateConnectionStatus(state) {
-        let status;
-        switch (state) {
-            case 'new':
-                status = 'Preparing connection...';
-                break;
-            case 'checking':
-                status = 'Checking connection...';
-                break;
-            case 'connected':
-                status = 'Connection established';
-                break;
-            case 'completed':
-                status = 'Connection completed';
-                break;
-            case 'failed':
-                status = 'Connection failed';
-                break;
-            case 'disconnected':
-                status = 'Disconnected';
-                break;
-            case 'closed':
-                status = 'Connection closed';
-                break;
-            default:
-                status = 'Unknown connection state';
-        }
-        updateStatus(status);
-    }
-
-        function logHandMovements(results) {
-        if (results.multiHandLandmarks) {
-            const currentTime = new Date().toISOString();
-            results.multiHandLandmarks.forEach((landmarks, handIndex) => {
-                const flattenedLandmarks = landmarks.flatMap(l => [l.x, l.y, l.z]);
-                handMovements.push({
-                    time: currentTime,
-                    handIndex: handIndex,
-                    landmarks: flattenedLandmarks
-                });
-            });
-        }
-        }
-
-        // Function to download hand movement data as CSV
-        function downloadCSV() {
-        const header = ["time", "handIndex", ...Array(21).fill().flatMap((_, i) => [`landmark${i}_x`, `landmark${i}_y`, `landmark${i}_z`])];
-        const rows = [header];
-
-        handMovements.forEach(move => {
-            rows.push([move.time, move.handIndex, ...move.landmarks]);
-        });
-
-        let csvContent = "data:text/csv;charset=utf-8,";
-        rows.forEach(rowArray => {
-            let row = rowArray.join(",");
-            csvContent += row + "\r\n";
-        });
-
-        var encodedUri = encodeURI(csvContent);
-        var link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "hand_movements.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        }
-
-        // Set up hand detection results handler
-        hands.onResults((results) => {
-            onResults(results);
-            logHandMovements(results);
-        });
-
-       // Mute/Unmute functionality
-        const muteButton = document.getElementById('muteButton');
-        muteButton.addEventListener('click', () => {
-            const audioTracks = localStream.getAudioTracks();
-            if (audioTracks.length > 0) {
-                const isCurrentlyMuted = !audioTracks[0].enabled;
-                audioTracks.forEach(track => track.enabled = !isCurrentlyMuted);
-                muteButton.textContent = isCurrentlyMuted ? 'Mute' : 'Unmute';
-            }
-        });
-
-
-        // Turn On/Off Camera functionality
-        const cameraButton = document.getElementById('cameraButton');
-        cameraButton.addEventListener('click', () => {
-            const videoTracks = localStream.getVideoTracks();
-            if (videoTracks.length > 0) {
-                const isCameraOff = !videoTracks[0].enabled;
-                videoTracks.forEach(track => track.enabled = isCameraOff);
-                cameraButton.textContent = isCameraOff ? 'Turn On Camera' : 'Turn Off Camera';
-            }
-        });
-
-        // Active speaker highlight functionality
-        let activeVideo = localVideo; // Assume local video is initially active
-        videoWrappers.forEach(wrapper => {
-            wrapper.addEventListener('click', () => {
-                // Remove active class from all wrappers
-                videoWrappers.forEach(w => w.classList.remove('active'));
-                // Add active class to clicked wrapper
-                wrapper.classList.add('active');
-                // Update active video based on wrapper clicked
-                activeVideo = wrapper.id === 'localVideo-wrapper' ? localVideo : remoteVideo;
-            });
-        });
+        // Start the local video
         startVideo(localVideo);
+
+        // Hand movement logging
+        setInterval(() => {
+            logHandMovement();
+        }, loggingInterval);
+
+        // Function to log hand movement data
+        function logHandMovement() {
+            const timestamp = new Date().toISOString();
+            const data = { timestamp, landmarks: [] };
+
+            if (hands.results.multiHandLandmarks) {
+                for (const landmarks of hands.results.multiHandLandmarks) {
+                    data.landmarks.push(landmarks.map(landmark => ({
+                        x: landmark.x,
+                        y: landmark.y,
+                        z: landmark.z
+                    })));
+                }
+            }
+
+            handMovements.push(data);
+            console.log('Logged hand movement:', data);
+        }
+
+        // Mute/unmute microphone
+        const muteButton = document.getElementById('muteButton');
+        let isMuted = false;
+
+        muteButton.addEventListener('click', () => {
+            if (localStream) {
+                localStream.getAudioTracks().forEach(track => {
+                    track.enabled = isMuted;
+                });
+                isMuted = !isMuted;
+                muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+            }
+        });
+
+        // Turn on/off camera
+        const cameraButton = document.getElementById('cameraButton');
+        let isCameraOn = true;
+
+        cameraButton.addEventListener('click', () => {
+            if (localStream) {
+                localStream.getVideoTracks().forEach(track => {
+                    track.enabled = isCameraOn;
+                });
+                isCameraOn = !isCameraOn;
+                cameraButton.textContent = isCameraOn ? 'Turn Off Camera' : 'Turn On Camera';
+            }
+        });
+
+        // Function to download CSV
+        function downloadCSV() {
+            const csvContent = "data:text/csv;charset=utf-8," + handMovements.map(e => {
+                const landmarks = e.landmarks.map(lm => lm.map(l => `${l.x},${l.y},${l.z}`).join(';')).join('|');
+                return `${e.timestamp},${landmarks}`;
+            }).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "hand_movements.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Update status display
+        function updateStatus(message) {
+            const statusDisplay = document.getElementById('statusDisplay');
+            if (statusDisplay) {
+                statusDisplay.textContent = message;
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(state) {
+            const connectionStatus = document.getElementById('connectionStatus');
+            if (connectionStatus) {
+                connectionStatus.textContent = `Connection Status: ${state}`;
+            }
+        }
     </script>
 </body>
 </html>
