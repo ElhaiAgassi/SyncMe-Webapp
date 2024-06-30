@@ -161,13 +161,13 @@
                 // Draw hand connections
                 drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
                 // Draw hand landmarks
-                drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
+                drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 3});
             }
         }
         canvasCtx.restore();
         requestAnimationFrame(predictHands);
     }
-
+    
     // Function to start hand detection
     function predictHands() {
         hands.send({image: localVideo});
@@ -386,43 +386,42 @@
         updateStatus(status);
     }
 
-         // Function to download hand movement data as CSV
-        function downloadCSV() {
-            const rows = [
-                ["time", "handIndex", "landmarkIndex", "x", "y", "z"]
-            ];
-            handMovements.forEach(move => {
-                move.landmarks.forEach((landmark, index) => {
-                    rows.push([move.time, move.handIndex, index, landmark.x, landmark.y, landmark.z]);
+        function logHandMovements(results) {
+        if (results.multiHandLandmarks) {
+            const currentTime = new Date().toISOString();
+            results.multiHandLandmarks.forEach((landmarks, handIndex) => {
+                const flattenedLandmarks = landmarks.flatMap(l => [l.x, l.y, l.z]);
+                handMovements.push({
+                    time: currentTime,
+                    handIndex: handIndex,
+                    landmarks: flattenedLandmarks
                 });
             });
-
-            let csvContent = "data:text/csv;charset=utf-8,";
-            rows.forEach(rowArray => {
-                let row = rowArray.join(",");
-                csvContent += row + "\r\n";
-            });
-
-            var encodedUri = encodeURI(csvContent);
-            var link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "hand_movements.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        }
         }
 
-        // Function to log hand movements
-        function logHandMovements(results) {
-            if (results.multiHandLandmarks) {
-                results.multiHandLandmarks.forEach((landmarks, index) => {
-                    handMovements.push({
-                        time: Date.now(),
-                        handIndex: index,
-                        landmarks: landmarks.map(l => ({x: l.x * canvasElement.width, y: l.y * canvasElement.height, z: l.z}))
-                    });
-                });
-            }
+        // Function to download hand movement data as CSV
+        function downloadCSV() {
+        const header = ["time", "handIndex", ...Array(21).fill().flatMap((_, i) => [`landmark${i}_x`, `landmark${i}_y`, `landmark${i}_z`])];
+        const rows = [header];
+
+        handMovements.forEach(move => {
+            rows.push([move.time, move.handIndex, ...move.landmarks]);
+        });
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        rows.forEach(rowArray => {
+            let row = rowArray.join(",");
+            csvContent += row + "\r\n";
+        });
+
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "hand_movements.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         }
 
         // Set up hand detection results handler
