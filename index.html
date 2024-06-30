@@ -15,71 +15,38 @@
         body, html {
             margin: 0;
             padding: 0;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
+            height: 100%;
+            width: 100%;
             display: flex;
             flex-direction: column;
             background-color: #f0f0f0;
         }
-
-        #controls {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            padding: 10px 0;
-            background-color: #333;
-            color: white;
-            position: fixed;
-            top: 0;
-            z-index: 1000;
-        }
-
-        .control-button {
-            margin: 0 10px;
-            padding: 10px 20px;
-            background-color: #555;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            color: white;
-        }
-
-        .control-button:hover {
-            background-color: #777;
-        }
-
+        
         #video-container {
             display: flex;
             flex: 1;
             width: 100%;
             background-color: #ffffff;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            height: calc(100vh - 50px); /* Adjust based on your controls height */
-            margin-top: 50px; /* Height of the control bar */
+            position: relative;
         }
-
+        
         .video-wrapper {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #f0f0f0;
+            background-color: #000;
             position: relative;
             border: 2px solid transparent;
             overflow: hidden;
-            height: 100%; /* Full height of container */
         }
-
+    
         .video-wrapper.active {
             border-color: lime;
         }
 
-        #localVideo-wrapper video,
-        #localVideo-wrapper canvas,
-        #remoteVideo-wrapper video {
+        video, canvas {
             position: absolute;
             top: 0;
             left: 0;
@@ -91,35 +58,56 @@
         #localVideo {
             transform: scaleX(-1);
         }
-
+        
         #outputCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
             z-index: 1;
             pointer-events: none;
             transform: scaleX(-1);
         }
+
+        #controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 10px 0;
+            background-color: #333;
+            color: white;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+        }
+    
+        .control-button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            background-color: #555;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            color: white;
+        }
+    
+        .control-button:hover {
+            background-color: #777;
+        }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <button class="control-button" id="muteButton">Mute</button>
-        <button class="control-button" id="cameraButton">Turn Off Camera</button>
-        <button class="control-button" id="downloadButton" onclick="downloadCSV()">Download CSV</button>
-    </div>
-    <!-- Container for video elements -->
     <div id="video-container">
         <div class="video-wrapper" id="localVideo-wrapper">
             <video id="localVideo" autoplay playsinline muted></video>
             <canvas id="outputCanvas"></canvas>
         </div>
-        <!-- Wrapper for remote video -->
         <div class="video-wrapper" id="remoteVideo-wrapper">
             <video id="remoteVideo" autoplay playsinline></video>
         </div>
+    </div>
+    <div id="controls">
+        <button class="control-button" id="muteButton">Mute</button>
+        <button class="control-button" id="cameraButton">Turn Off Camera</button>
+        <button class="control-button" id="downloadButton" onclick="downloadCSV()">Download CSV</button>
     </div>
     
     <script>
@@ -131,7 +119,7 @@
 
         let localStream;
         let handMovements = []; // Array to store hand movement data
-        const loggingInterval = 5000; // Time in ms between logs, changed from 500000 for demo
+        const loggingInterval = 5000; // Time in ms between logs
 
         // Initialize MediaPipe Hands
         const hands = new Hands({
@@ -165,7 +153,7 @@
             canvasCtx.restore();
             requestAnimationFrame(predictHands);
         }
-
+        
         // Function to start hand detection
         function predictHands() {
             hands.send({image: localVideo});
@@ -273,26 +261,50 @@
             }
         });
 
-        socket.on('offer', async (offer) => {
-            if (!isOfferer) {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        socket.on('offer', async (data) => {
+            if (!peerConnection) {
+                console.error('PeerConnection not initialized when receiving offer');
+                updateStatus('Error: PeerConnection not initialized');
+                return;
+            }
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
                 socket.emit('answer', { answer });
-            }
-        });
-
-        socket.on('answer', async (answer) => {
-            if (isOfferer) {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            }
-        });
-
-        socket.on('ice-candidate', async (candidate) => {
-            try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                updateStatus('Answered incoming call');
             } catch (e) {
-                console.error('Error adding received ICE candidate:', e);
+                console.error('Error handling offer:', e);
+                updateStatus('Error handling offer');
+            }
+        });
+
+        socket.on('answer', async (data) => {
+            if (!peerConnection) {
+                console.error('PeerConnection not initialized when receiving answer');
+                updateStatus('Error: PeerConnection not initialized');
+                return;
+            }
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                updateStatus('Connected with peer');
+            } catch (e) {
+                console.error('Error handling answer:', e);
+                updateStatus('Error handling answer');
+            }
+        });
+
+        socket.on('ice-candidate', async (data) => {
+            if (!peerConnection) {
+                console.error('PeerConnection not initialized when receiving ICE candidate');
+                updateStatus('Error: PeerConnection not initialized');
+                return;
+            }
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (e) {
+                console.error('Error adding ICE candidate:', e);
+                updateStatus('Error adding ICE candidate');
             }
         });
 
@@ -303,74 +315,54 @@
                 })
                 .then(() => {
                     socket.emit('offer', { offer: peerConnection.localDescription });
+                    updateStatus('Offer sent');
                 })
                 .catch(e => {
-                    console.error('Error creating or sending offer:', e);
+                    console.error('Error creating offer:', e);
+                    updateStatus('Error creating offer');
                 });
         }
 
-        // Start the local video
-        startVideo(localVideo);
-
-        // Hand movement logging
-        setInterval(() => {
-            logHandMovement();
-        }, loggingInterval);
-
-        // Function to log hand movement data
-        function logHandMovement() {
-            const timestamp = new Date().toISOString();
-            const data = { timestamp, landmarks: [] };
-
-            if (hands.results.multiHandLandmarks) {
-                for (const landmarks of hands.results.multiHandLandmarks) {
-                    data.landmarks.push(landmarks.map(landmark => ({
-                        x: landmark.x,
-                        y: landmark.y,
-                        z: landmark.z
-                    })));
-                }
-            }
-
-            handMovements.push(data);
-            console.log('Logged hand movement:', data);
+        function updateStatus(message) {
+            console.log(message);
         }
 
-        // Mute/unmute microphone
+        // Initialize video and hand tracking
+        startVideo(localVideo);
+
+        // Mute/unmute functionality
         const muteButton = document.getElementById('muteButton');
-        let isMuted = false;
+        let isMuted = true;
 
         muteButton.addEventListener('click', () => {
             if (localStream) {
-                localStream.getAudioTracks().forEach(track => {
-                    track.enabled = isMuted;
-                });
-                isMuted = !isMuted;
-                muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    isMuted = !isMuted;
+                    audioTracks[0].enabled = !isMuted;
+                    muteButton.textContent = isMuted ? 'Mute' : 'Unmute';
+                }
             }
         });
 
-        // Turn on/off camera
+        // Toggle camera functionality
         const cameraButton = document.getElementById('cameraButton');
         let isCameraOn = true;
 
         cameraButton.addEventListener('click', () => {
             if (localStream) {
-                localStream.getVideoTracks().forEach(track => {
-                    track.enabled = isCameraOn;
-                });
-                isCameraOn = !isCameraOn;
-                cameraButton.textContent = isCameraOn ? 'Turn Off Camera' : 'Turn On Camera';
+                const videoTracks = localStream.getVideoTracks();
+                if (videoTracks.length > 0) {
+                    isCameraOn = !isCameraOn;
+                    videoTracks[0].enabled = isCameraOn;
+                    cameraButton.textContent = isCameraOn ? 'Turn Off Camera' : 'Turn On Camera';
+                }
             }
         });
 
-        // Function to download CSV
+        // Function to download hand movement data as CSV
         function downloadCSV() {
-            const csvContent = "data:text/csv;charset=utf-8," + handMovements.map(e => {
-                const landmarks = e.landmarks.map(lm => lm.map(l => `${l.x},${l.y},${l.z}`).join(';')).join('|');
-                return `${e.timestamp},${landmarks}`;
-            }).join("\n");
-
+            const csvContent = "data:text/csv;charset=utf-8," + handMovements.map(e => e.join(",")).join("\n");
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
@@ -380,20 +372,35 @@
             document.body.removeChild(link);
         }
 
-        // Update status display
-        function updateStatus(message) {
-            const statusDisplay = document.getElementById('statusDisplay');
-            if (statusDisplay) {
-                statusDisplay.textContent = message;
+        // Logging hand movements
+        setInterval(() => {
+            if (handMovements.length > 0) {
+                console.log('Hand movements:', handMovements);
+                handMovements = []; // Clear after logging
             }
+        }, loggingInterval);
+
+        function logHandMovements(landmarks) {
+            const timestamp = new Date().toISOString();
+            landmarks.forEach((landmark, index) => {
+                handMovements.push([timestamp, index, landmark.x, landmark.y, landmark.z]);
+            });
         }
 
-        // Update connection status
-        function updateConnectionStatus(state) {
-            const connectionStatus = document.getElementById('connectionStatus');
-            if (connectionStatus) {
-                connectionStatus.textContent = `Connection Status: ${state}`;
+        // Handle onResults to log hand movements
+        function onResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            if (results.multiHandLandmarks) {
+                results.multiHandLandmarks.forEach(landmarks => {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: 'lime', lineWidth: 4 });
+                    drawLandmarks(canvasCtx, landmarks, { color: 'red', radius: 3 });
+                    logHandMovements(landmarks); // Log the hand movements
+                });
             }
+            canvasCtx.restore();
+            requestAnimationFrame(predictHands);
         }
     </script>
 </body>
