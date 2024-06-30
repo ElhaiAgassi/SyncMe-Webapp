@@ -213,7 +213,6 @@
             peerConnection.addTrack(track, localStream);
         });
 
-        // Listen for tracks added to the peer connection
         peerConnection.ontrack = (event) => {
             if (!remoteVideo.srcObject) {
                 remoteVideo.srcObject = new MediaStream();
@@ -221,7 +220,6 @@
             remoteVideo.srcObject.addTrack(event.track);
         };
 
-        // Handle ICE candidates
         peerConnection.onicecandidate = event => {
             if (event.candidate) {
                 socket.emit('ice-candidate', { candidate: event.candidate });
@@ -230,13 +228,13 @@
 
         peerConnection.oniceconnectionstatechange = () => {
             console.log('ICE connection state:', peerConnection.iceConnectionState);
+            updateConnectionStatus(peerConnection.iceConnectionState);
         };
 
         peerConnection.onsignalingstatechange = () => {
             console.log('Signaling state:', peerConnection.signalingState);
         };
 
-        // Implement adaptive bitrate
         peerConnection.addEventListener('iceconnectionstatechange', () => {
             if (peerConnection.iceConnectionState === 'connected') {
                 peerConnection.getSenders().forEach(sender => {
@@ -247,54 +245,94 @@
                         }
                         parameters.encodings[0].maxBitrate = 1000000; // 1 Mbps
                         sender.setParameters(parameters)
-                            .then(() => console.log('Adaptive bitrate settings applied'))
-                            .catch(e => console.error('Error setting adaptive bitrate:', e));
+                            .then(() => {
+                                console.log('Adaptive bitrate settings applied');
+                                updateStatus('Adaptive bitrate settings applied');
+                            })
+                            .catch(e => {
+                                console.error('Error setting adaptive bitrate:', e);
+                                updateStatus('Failed to apply adaptive bitrate settings');
+                            });
                     }
                 });
             }
         });
 
-        startCall(); // Start the call after peer connection is set up
+        startCall();
     }
 
     // Initialize Socket.IO connection
     const socket = io({transports: ['websocket']});
     socket.on('connect', () => {
         console.log('Socket.IO connected');
+        updateStatus('Connected to signaling server');
     });
     socket.on('disconnect', () => {
         console.log('Socket.IO disconnected');
+        updateStatus('Disconnected from signaling server');
     });
 
     // Handle incoming offer
     socket.on('offer', data => {
+        if (!peerConnection) {
+            console.error('PeerConnection not initialized when receiving offer');
+            updateStatus('Error: PeerConnection not initialized');
+            return;
+        }
         peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
             .then(() => peerConnection.createAnswer())
             .then(answer => {
                 peerConnection.setLocalDescription(answer);
                 socket.emit('answer', { answer });
+                updateStatus('Answered incoming call');
             })
-            .catch(e => console.error('Error handling offer:', e));
+            .catch(e => {
+                console.error('Error handling offer:', e);
+                updateStatus('Error handling incoming call');
+            });
     });
 
     // Handle incoming answer
     socket.on('answer', data => {
+        if (!peerConnection) {
+            console.error('PeerConnection not initialized when receiving answer');
+            updateStatus('Error: PeerConnection not initialized');
+            return;
+        }
         peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-            .catch(e => console.error('Error setting remote description with answer', e));
+            .then(() => updateStatus('Call connected'))
+            .catch(e => {
+                console.error('Error setting remote description with answer', e);
+                updateStatus('Error connecting call');
+            });
     });
 
     // Handle incoming ICE candidates
     socket.on('ice-candidate', data => {
+        if (!peerConnection) {
+            console.error('PeerConnection not initialized when receiving ICE candidate');
+            updateStatus('Error: PeerConnection not initialized');
+            return;
+        }
         if (data.candidate) {
             let candidate = new RTCIceCandidate(data.candidate);
             peerConnection.addIceCandidate(candidate)
-                .catch(e => console.error('Error adding received ICE candidate', e));
+                .catch(e => {
+                    console.error('Error adding received ICE candidate', e);
+                    updateStatus('Error adding ICE candidate');
+                });
         }
     });
 
     // Function to initiate a call
     function startCall() {
         console.log('Starting call...');
+        updateStatus('Initiating call...');
+        if (!peerConnection) {
+            console.error('PeerConnection not initialized when starting call');
+            updateStatus('Error: PeerConnection not initialized');
+            return;
+        }
         peerConnection.createOffer()
             .then(offer => {
                 console.log('Offer created');
@@ -303,8 +341,53 @@
             .then(() => {
                 console.log('Local description set, sending offer');
                 socket.emit('offer', { offer: peerConnection.localDescription });
+                updateStatus('Call offer sent');
             })
-            .catch(e => console.error('Error in startCall:', e));
+            .catch(e => {
+                console.error('Error in startCall:', e);
+                updateStatus('Error starting call');
+            });
+    }
+
+    // Function to update status for user feedback
+    function updateStatus(message) {
+        const statusElement = document.getElementById('status');
+        if (statusElement) {
+            statusElement.textContent = message;
+        } else {
+            console.log('Status update:', message);
+        }
+    }
+
+    // Function to update connection status
+    function updateConnectionStatus(state) {
+        let status;
+        switch (state) {
+            case 'new':
+                status = 'Preparing connection...';
+                break;
+            case 'checking':
+                status = 'Checking connection...';
+                break;
+            case 'connected':
+                status = 'Connection established';
+                break;
+            case 'completed':
+                status = 'Connection completed';
+                break;
+            case 'failed':
+                status = 'Connection failed';
+                break;
+            case 'disconnected':
+                status = 'Disconnected';
+                break;
+            case 'closed':
+                status = 'Connection closed';
+                break;
+            default:
+                status = 'Unknown connection state';
+        }
+        updateStatus(status);
     }
 
          // Function to download hand movement data as CSV
