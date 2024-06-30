@@ -129,112 +129,78 @@
     </div>
     
     <script>
-         // Get references to HTML elements
-        const localVideo = document.getElementById('localVideo');
-        const remoteVideo = document.getElementById('remoteVideo');
-        const canvasElement = document.getElementById('outputCanvas');
-        const canvasCtx = canvasElement.getContext('2d');
-        const videoWrappers = document.querySelectorAll('.video-wrapper');
+         const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const canvasElement = document.getElementById('outputCanvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const videoWrappers = document.querySelectorAll('.video-wrapper');
 
-        let localStream;
-        let handMovements = [];// Array to store hand movement data
-        const loggingInterval = 5000;// Time in ms between logs, changed from 500000 for demo
+    let localStream;
+    let handMovements = []; // Array to store hand movement data
+    const loggingInterval = 5000; // Time in ms between logs, changed from 500000 for demo
 
-            // Initialize MediaPipe Hands
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
+    // Initialize MediaPipe Hands
+    const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
 
-        // Configure hand detection options
-        hands.setOptions({
-            maxNumHands: 4,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+    // Configure hand detection options
+    hands.setOptions({
+        maxNumHands: 4,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
 
-          // Set the callback function for hand detection results
-        hands.onResults(onResults);
+    // Set the callback function for hand detection results
+    hands.onResults(onResults);
 
-               // Function to handle hand detection results
-        function onResults(results) {
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-            if (results.multiHandLandmarks) {
-                for (const landmarks of results.multiHandLandmarks) {
-                       // Draw hand connections
-                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
-                    // Draw hand landmarks
-                    drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 3});
-                        // Draw hand landmarks
-                    drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
-                }
+    // Function to handle hand detection results
+    function onResults(results) {
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+        if (results.multiHandLandmarks) {
+            for (const landmarks of results.multiHandLandmarks) {
+                // Draw hand connections
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'lime', lineWidth: 4});
+                // Draw hand landmarks
+                drawLandmarks(canvasCtx, landmarks, {color: 'red', radius: 5});
             }
-            canvasCtx.restore();
-            requestAnimationFrame(predictHands);
         }
-        
-        // Function to start hand detection
-        function predictHands() {
-            hands.send({image: localVideo});
-        }
+        canvasCtx.restore();
+        requestAnimationFrame(predictHands);
+    }
 
-        // Function to start video stream
+    // Function to start hand detection
+    function predictHands() {
+        hands.send({image: localVideo});
+    }
 
-          // Function to start video stream
-        function startVideo(videoElement) {
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-                .then(stream => {
-                    videoElement.srcObject = stream;
-                    localStream = stream;
-                    stream.getTracks().forEach(track => {
-                        peerConnection.addTrack(track, stream);
-                    });
-                    videoElement.play();
-                    videoElement.onloadedmetadata = () => {
-                        canvasElement.width = videoElement.videoWidth;
-                        canvasElement.height = videoElement.videoHeight;
-                        predictHands();
-                        startCall();  // Call startCall here after stream is ready
-                    };
-                })
-                .catch(error => {
-                    console.error('Error opening video camera:', error);
+    // Function to start video stream
+    function startVideo(videoElement) {
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                videoElement.srcObject = stream;
+                localStream = stream;
+                videoElement.play();
+                videoElement.onloadedmetadata = () => {
+                    canvasElement.width = videoElement.videoWidth;
+                    canvasElement.height = videoElement.videoHeight;
+                    predictHands();
+                    setupPeerConnection(); // Set up peer connection after stream is ready
+                };
+            })
+            .catch(error => {
+                console.error('Error opening video camera:', error);
             });
-        }
-            
-        // Function to initiate a call
-        function startCall() {
-            console.log('Starting call...');
-            if (localStream) {
-                peerConnection.createOffer()
-                    .then(offer => {
-                        console.log('Offer created');
-                        return peerConnection.setLocalDescription(offer);
-                    })
-                    .then(() => {
-                        console.log('Local description set, sending offer');
-                        socket.emit('offer', { offer: peerConnection.localDescription });
-                    })
-                    .catch(e => console.error('Error in startCall:', e));
-            } else {
-                console.log('Waiting for local stream');
-            }
-            // Function to start hand detection
-        function predictHands() {
-            hands.send({image: localVideo});
-        }
+    }
 
-           // Start the local video stream
-        startVideo(localVideo);
+    // Create RTCPeerConnection for WebRTC
+    let peerConnection;
 
-        // It follows the flow: create connection → set up listeners → initiate or receive call → exchange ICE candidates → establish connection → manage media streams.
-        
-        // Create RTCPeerConnection for WebRTC
-
-         // Create RTCPeerConnection for WebRTC
-        const peerConnection = new RTCPeerConnection({
+    function setupPeerConnection() {
+        peerConnection = new RTCPeerConnection({
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
             iceTransportPolicy: 'all',
             iceCandidatePoolSize: 10,
@@ -243,7 +209,11 @@
             sdpSemantics: 'unified-plan'
         });
 
-         // Listen for tracks added to the peer connection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+
+        // Listen for tracks added to the peer connection
         peerConnection.ontrack = (event) => {
             if (!remoteVideo.srcObject) {
                 remoteVideo.srcObject = new MediaStream();
@@ -251,7 +221,7 @@
             remoteVideo.srcObject.addTrack(event.track);
         };
 
-             // Handle ICE candidates
+        // Handle ICE candidates
         peerConnection.onicecandidate = event => {
             if (event.candidate) {
                 socket.emit('ice-candidate', { candidate: event.candidate });
@@ -266,72 +236,76 @@
             console.log('Signaling state:', peerConnection.signalingState);
         };
 
-              // Implement adaptive bitrate
+        // Implement adaptive bitrate
         peerConnection.addEventListener('iceconnectionstatechange', () => {
             if (peerConnection.iceConnectionState === 'connected') {
-                peerConnection.getReceivers().forEach(receiver => {
-                    if (receiver.track.kind === 'video') {
-                        receiver.setParameters({
-                            degradationPreference: 'maintain-framerate'
-                        });
+                peerConnection.getSenders().forEach(sender => {
+                    if (sender.track && sender.track.kind === 'video') {
+                        const parameters = sender.getParameters();
+                        if (!parameters.encodings) {
+                            parameters.encodings = [{}];
+                        }
+                        parameters.encodings[0].maxBitrate = 1000000; // 1 Mbps
+                        sender.setParameters(parameters)
+                            .then(() => console.log('Adaptive bitrate settings applied'))
+                            .catch(e => console.error('Error setting adaptive bitrate:', e));
                     }
                 });
             }
         });
 
-        // Initialize Socket.IO connection
-        const socket = io({transports: ['websocket']}); // Automatically connect to the host that serves the page
-        socket.on('connect', () => {
-            console.log('Socket.IO connected');
-        });
-        socket.on('disconnect', () => {
-            console.log('Socket.IO disconnected');
-        });
+        startCall(); // Start the call after peer connection is set up
+    }
 
-        // Handle incoming offer
-        socket.on('offer', data => {
-            peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
-                .then(() => peerConnection.createAnswer())
-                .then(answer => {
-                    peerConnection.setLocalDescription(answer);
-                    socket.emit('answer', { answer });
-                })
-                .catch(e => console.error('Error handling offer:', e));
-        });
+    // Initialize Socket.IO connection
+    const socket = io({transports: ['websocket']});
+    socket.on('connect', () => {
+        console.log('Socket.IO connected');
+    });
+    socket.on('disconnect', () => {
+        console.log('Socket.IO disconnected');
+    });
 
-         // Handle incoming answer
-        socket.on('answer', data => {
-            peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-                .catch(e => console.error('Error setting remote description with answer', e));
-        });
+    // Handle incoming offer
+    socket.on('offer', data => {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
+            .then(() => peerConnection.createAnswer())
+            .then(answer => {
+                peerConnection.setLocalDescription(answer);
+                socket.emit('answer', { answer });
+            })
+            .catch(e => console.error('Error handling offer:', e));
+    });
 
-        // Handle incoming ICE candidates
-        socket.on('ice-candidate', data => {
-            if (data.candidate) {
-                let candidate = new RTCIceCandidate(data.candidate);
-                peerConnection.addIceCandidate(candidate)
-                    .catch(e => console.error('Error adding received ICE candidate', e));
-            }
-        });
+    // Handle incoming answer
+    socket.on('answer', data => {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+            .catch(e => console.error('Error setting remote description with answer', e));
+    });
 
-        // Function to initiate a call
-        function startCall() {
-            console.log('Starting call...');
-            if (localStream) {
-                peerConnection.createOffer()
-                    .then(offer => {
-                        console.log('Offer created');
-                        return peerConnection.setLocalDescription(offer);
-                    })
-                    .then(() => {
-                        console.log('Local description set, sending offer');
-                        socket.emit('offer', { offer: peerConnection.localDescription });
-                    })
-                    .catch(e => console.error('Error in startCall:', e));
-            } else {
-                console.log('Waiting for local stream');
-            }
+    // Handle incoming ICE candidates
+    socket.on('ice-candidate', data => {
+        if (data.candidate) {
+            let candidate = new RTCIceCandidate(data.candidate);
+            peerConnection.addIceCandidate(candidate)
+                .catch(e => console.error('Error adding received ICE candidate', e));
         }
+    });
+
+    // Function to initiate a call
+    function startCall() {
+        console.log('Starting call...');
+        peerConnection.createOffer()
+            .then(offer => {
+                console.log('Offer created');
+                return peerConnection.setLocalDescription(offer);
+            })
+            .then(() => {
+                console.log('Local description set, sending offer');
+                socket.emit('offer', { offer: peerConnection.localDescription });
+            })
+            .catch(e => console.error('Error in startCall:', e));
+    }
 
          // Function to download hand movement data as CSV
         function downloadCSV() {
@@ -379,15 +353,15 @@
         });
 
        // Mute/Unmute functionality
-const muteButton = document.getElementById('muteButton');
-muteButton.addEventListener('click', () => {
-    const audioTracks = localStream.getAudioTracks();
-    if (audioTracks.length > 0) {
-        const isCurrentlyMuted = !audioTracks[0].enabled;
-        audioTracks.forEach(track => track.enabled = !isCurrentlyMuted);
-        muteButton.textContent = isCurrentlyMuted ? 'Mute' : 'Unmute';
-    }
-});
+        const muteButton = document.getElementById('muteButton');
+        muteButton.addEventListener('click', () => {
+            const audioTracks = localStream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                const isCurrentlyMuted = !audioTracks[0].enabled;
+                audioTracks.forEach(track => track.enabled = !isCurrentlyMuted);
+                muteButton.textContent = isCurrentlyMuted ? 'Mute' : 'Unmute';
+            }
+        });
 
 
         // Turn On/Off Camera functionality
@@ -413,6 +387,7 @@ muteButton.addEventListener('click', () => {
                 activeVideo = wrapper.id === 'localVideo-wrapper' ? localVideo : remoteVideo;
             });
         });
+        startVideo(localVideo);
     </script>
 </body>
 </html>
