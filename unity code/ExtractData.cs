@@ -155,10 +155,10 @@ public class ExtractData : MonoBehaviour
 {
     // the device itself
     public LeapProvider leapProvider;
-    string filePath = "data4.json";
+    string filePath = "unsynced2.json";
     // string filePath = "mirrored_data4.json";
     bool isRunning = false;
-    const float timerInterval = 10f;
+    const float timerInterval = 20f;
     bool timer_on = false;
     float timer = 0f;
 
@@ -220,6 +220,7 @@ public class ExtractData : MonoBehaviour
             PalmArm palmArmData = new PalmArm
             {
                 frameId = frame.Id,
+                isleft = hand.IsLeft,
                 PalmPosition = hand.PalmPosition,
                 PalmVelocity = hand.PalmVelocity,
                 WristPosition = hand.WristPosition,
@@ -258,7 +259,7 @@ public class ExtractData : MonoBehaviour
         File.AppendAllLines(filePath, handDataList);
 
         // Call mirrorJson after creating the JSON file
-        mirrorJson();
+        // mirrorJson();
     }
 
     // New function to mirror the JSON data

@@ -27,9 +27,11 @@ public class SerializableFinger
 public class PalmArm
 {
     public long frameId;
+    public bool isleft;
     public List<SerializableFinger> fingers = new List<SerializableFinger>();
     public Vector3 PalmPosition;//The center position of the palm.
     public Vector3 PalmVelocity;//The rate of change of the palm position.
     public Vector3 WristPosition;//The position of the wrist of this hand.
     public Vector3 ElbowPosition;
+    
 }
