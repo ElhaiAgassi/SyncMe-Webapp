@@ -31,6 +31,7 @@ this works on folder 3 we still need to update the code to worck with 5
 import json
 import numpy as np
 from scipy.signal import correlate
+from split_left_right import *
 
 
 # Function to load JSON data
@@ -66,7 +67,7 @@ def extract_tip_positions(data):
         for finger in frame['fingers']:
             tip_position = finger['TipPosition']
             frame_positions.append([tip_position['x'], tip_position['y'], tip_position['z']])
-        positions.append(np.mean(frame_positions, axis=0))
+        positions.append(np.mean(frame_positions, axis=1))
     return np.array(positions)
 
 
@@ -91,7 +92,7 @@ def extract_finger_bone_positions(data, finger_index):
             finger_bone_positions.append([bone_prev_joint['x'], bone_prev_joint['y'], bone_prev_joint['z']])
             finger_bone_positions.append([bone_next_joint['x'], bone_next_joint['y'], bone_next_joint['z']])
         bone_positions.append(
-            np.mean(finger_bone_positions, axis=0))  # Average all bone joint positions for each finger
+            np.mean(finger_bone_positions, axis=1))  # Average all bone joint positions for each finger
     return np.array(bone_positions)
 
 
@@ -113,9 +114,13 @@ def correlation_without_lag(a, b):
 
 
 # # Load the data
-# data1 = load_json('data_pool_3/sync_right_hand_data.json')
-# data2 = load_json('data_pool_3/sync_left_hand_data.json')
+# # data1 = load_json('data_pool_3/sync_right_hand_data.json')
+# # data2 = load_json('data_pool_3/sync_left_hand_data.json')
+# hand_recordings = 'final_project_data_experiments/synced1/synced1.json'
+# left_hand, right_hand = split_json_by_hand(hand_recordings)
 #
+# data1 = right_hand
+# data2 = left_hand
 # # Flip data for mirrored hand comparison
 # positions2 = np.flip(extract_palm_positions(data2), axis=1)
 #
