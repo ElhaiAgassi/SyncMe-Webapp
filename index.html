@@ -155,8 +155,8 @@
         hands.setOptions({
             maxNumHands: 2,
             modelComplexity: 1,
-            minDetectionConfidence: 0.7,
-            minTrackingConfidence: 0.7
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.5
         });
 
         // Synchronization analysis functions
@@ -203,6 +203,39 @@
             return sum / n;
         }
 
+        function calculateSynchronization(localHand, remoteHand) {
+            if (!localHand || !remoteHand) return;
+        
+            // Convert data for algorithms
+            const localSeq = localHand.map(l => [l.x, l.y, l.z]);
+            const remoteSeq = remoteHand.map(l => [l.x, l.y, l.z]);
+        
+            try {
+                // Calculate metrics
+                const dtwScore = calculateDTW(localSeq, remoteSeq);
+                const ccaScore = calculateCCA(localSeq, remoteSeq);
+                const corrScore = calculateCrossCorrelation(
+                    localHand.map(l => l.x),
+                    remoteHand.map(l => l.x)
+                );
+        
+                // Update display with percentages
+                document.getElementById('dtw-score').textContent = 
+                    `DTW Score: ${(dtwScore * 100).toFixed(1)}%`;
+                document.getElementById('cca-score').textContent = 
+                    `CCA Score: ${(ccaScore * 100).toFixed(1)}%`;
+                document.getElementById('correlation-score').textContent = 
+                    `Cross-Correlation: ${(corrScore * 100).toFixed(1)}%`;
+                
+                const overallSync = (dtwScore + ccaScore + corrScore) / 3;
+                document.getElementById('overall-sync').textContent = 
+                    `Overall Synchronization: ${(overallSync * 100).toFixed(1)}%`;
+        
+            } catch (error) {
+                console.error('Error calculating synchronization:', error);
+            }
+        }
+
         // Analysis update function
         function updateSynchronizationMetrics() {
             if (!isAnalysisActive || localHandData.length < ANALYSIS_WINDOW || remoteHandData.length < ANALYSIS_WINDOW) return;
@@ -226,42 +259,56 @@
             document.getElementById('overall-sync').textContent = `Overall Synchronization: ${overallSync.toFixed(3)}`;
         }
 
-        // Modified onResults to include synchronization analysis
-        function onResults(results) {
-            if (!results.multiHandLandmarks) return;
-
-            const handData = results.multiHandLandmarks.map(landmarks => 
-                landmarks.map(l => ({x: l.x, y: l.y, z: l.z}))
-            );
-
-            // Store hand data for analysis
-            if (results.image === localVideo) {
-                localHandData.push(handData);
-                if (localHandData.length > ANALYSIS_WINDOW * 2) {
-                    localHandData = localHandData.slice(-ANALYSIS_WINDOW);
-                }
-            } else {
-                remoteHandData.push(handData);
-                if (remoteHandData.length > ANALYSIS_WINDOW * 2) {
-                    remoteHandData = remoteHandData.slice(-ANALYSIS_WINDOW);
-                }
-            }
-
-            // Draw landmarks
-            const canvas = results.image === localVideo ? outputCanvas : remoteCanvas;
-            const ctx = canvas.getContext('2d');
+       function onResults(results) {
+            const canvasElement = document.getElementById('outputCanvas');
+            const canvasCtx = canvasElement.getContext('2d');
             
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
-            results.multiHandLandmarks.forEach(landmarks => {
-                drawConnectors(ctx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 3});
-                drawLandmarks(ctx, landmarks, {color: '#FF0000', radius: 2});
-            });
-
-            if (isAnalysisActive) {
-                updateSynchronizationMetrics();
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // Draw video frame first
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+        
+            let handData = [];
+        
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    // Store hand data
+                    handData.push(landmarks.map(l => ({
+                        x: l.x * canvasElement.width,
+                        y: l.y * canvasElement.height,
+                        z: l.z
+                    })));
+        
+                    // Draw hand connections
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+                        color: '#00FF00',
+                        lineWidth: 5
+                    });
+                    
+                    // Draw hand landmarks
+                    drawLandmarks(canvasCtx, landmarks, {
+                        color: '#FF0000',
+                        lineWidth: 3,
+                        radius: 7,
+                        fillColor: '#FFFFFF'
+                    });
+                }
+        
+                // Store data based on video source
+                if (results.image === localVideo) {
+                    localHandData = handData;
+                } else {
+                    remoteHandData = handData;
+                }
+        
+                // Update synchronization metrics if analysis is active
+                if (isAnalysisActive && localHandData.length > 0 && remoteHandData.length > 0) {
+                    calculateSynchronization(localHandData[0], remoteHandData[0]);
+                }
             }
+            
+            canvasCtx.restore();
         }
 
         // Initialize video streams and WebRTC
@@ -270,8 +317,9 @@
         // Add event listeners for new controls
         document.getElementById('startAnalysis').addEventListener('click', () => {
             isAnalysisActive = !isAnalysisActive;
-            document.getElementById('startAnalysis').textContent = 
-                isAnalysisActive ? 'Stop Analysis' : 'Start Analysis';
+            const button = document.getElementById('startAnalysis');
+            button.textContent = isAnalysisActive ? 'Stop Analysis' : 'Start Analysis';
+            button.style.backgroundColor = isAnalysisActive ? '#ff4444' : '#4CAF50';
         });
 
         document.getElementById('downloadData').addEventListener('click', () => {
@@ -347,7 +395,7 @@
                 updateStatus('Failed to start video: ' + error.message);
             }
         }
-
+                
         // Helper function to update status
         function updateStatus(message) {
             console.log(message);
