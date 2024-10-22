@@ -287,7 +287,66 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         });
+        // Function to start video stream and initialize hand tracking
+        async function startVideo(videoElement) {
+            try {
+                // Get user media stream
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: true,
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+        
+                // Set up video element
+                videoElement.srcObject = stream;
+                localStream = stream;
+        
+                // Wait for video metadata to load
+                await new Promise(resolve => {
+                    videoElement.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+        
+                // Start video playback
+                await videoElement.play();
+        
+                // Set up canvas dimensions
+                const outputCanvas = document.getElementById('outputCanvas');
+                const remoteCanvas = document.getElementById('remoteCanvas');
+                outputCanvas.width = videoElement.videoWidth;
+                outputCanvas.height = videoElement.videoHeight;
+                remoteCanvas.width = videoElement.videoWidth;
+                remoteCanvas.height = videoElement.videoHeight;
+        
+                // Initialize hand tracking
+                const camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await hands.send({ image: videoElement });
+                    },
+                    width: 1280,
+                    height: 720
+                });
+                camera.start();
+        
+                // Set up WebRTC connection
+                setupPeerConnection();
+        
+                // Update status
+                updateStatus('Video stream started');
+            
+            } catch (error) {
+                console.error('Error starting video:', error);
+                updateStatus('Failed to start video: ' + error.message);
+            }
+        }
 
+        // Helper function to update status
+        function updateStatus(message) {
+            console.log(message);
         // Start the application
         startVideo(localVideo);
     </script>
