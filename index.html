@@ -142,7 +142,11 @@
         let remoteHandData = [];
         const ANALYSIS_WINDOW = 60; // 60 frames for analysis
         let isAnalysisActive = false;
-
+        const socket = io({
+            transports: ['websocket'],
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
         // Initialize hands detection for both local and remote video
         const hands = new Hands({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
@@ -348,7 +352,176 @@
         function updateStatus(message) {
             console.log(message);
         }
+        // WebRTC configuration
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ],
+            iceTransportPolicy: 'all',
+            iceCandidatePoolSize: 10,
+            bundlePolicy: 'max-bundle',
+            rtcpMuxPolicy: 'require',
+            sdpSemantics: 'unified-plan'
+        };
         
+        let peerConnection;
+        let localStream;
+        let dataChannel;
+        
+        async function setupPeerConnection() {
+            try {
+                // Create new RTCPeerConnection
+                peerConnection = new RTCPeerConnection(configuration);
+                
+                // Add local media tracks to peer connection
+                if (localStream) {
+                    localStream.getTracks().forEach(track => {
+                        peerConnection.addTrack(track, localStream);
+                    });
+                }
+        
+                // Create data channel for hand tracking data
+                dataChannel = peerConnection.createDataChannel('handData', {
+                    ordered: true,
+                    maxRetransmits: 3
+                });
+        
+                // Set up data channel event handlers
+                setupDataChannelHandlers();
+        
+                // Handle incoming remote tracks
+                peerConnection.ontrack = handleRemoteTrack;
+        
+                // Handle ICE candidates
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        socket.emit('ice-candidate', { candidate: event.candidate });
+                    }
+                };
+        
+                // Handle connection state changes
+                peerConnection.onconnectionstatechange = () => {
+                    updateStatus(`WebRTC connection state: ${peerConnection.connectionState}`);
+                    if (peerConnection.connectionState === 'connected') {
+                        setupBitrateHandling();
+                    }
+                };
+        
+                // Handle ICE connection state changes
+                peerConnection.oniceconnectionstatechange = () => {
+                    updateStatus(`ICE connection state: ${peerConnection.iceConnectionState}`);
+                };
+        
+                // Handle signaling state changes
+                peerConnection.onsignalingstatechange = () => {
+                    updateStatus(`Signaling state: ${peerConnection.signalingState}`);
+                };
+        
+                // Create and send offer if we're the initiator
+                if (!document.location.hash) {
+                    await createAndSendOffer();
+                }
+        
+                updateStatus('WebRTC connection setup complete');
+        
+                } catch (error) {
+                    console.error('Error setting up WebRTC:', error);
+                    updateStatus('Failed to setup WebRTC: ' + error.message);
+                }
+            }
+        
+            function setupDataChannelHandlers() {
+                dataChannel.onopen = () => {
+                    updateStatus('Data channel opened');
+                };
+            
+                dataChannel.onclose = () => {
+                    updateStatus('Data channel closed');
+                };
+            
+                dataChannel.onmessage = event => {
+                    // Handle incoming hand tracking data
+                    const handData = JSON.parse(event.data);
+                    remoteHandData = handData;
+                    updateSynchronizationMetrics();
+                };
+            }
+            
+            function handleRemoteTrack(event) {
+                const remoteVideo = document.getElementById('remoteVideo');
+                if (!remoteVideo.srcObject) {
+                    remoteVideo.srcObject = new MediaStream();
+                }
+                remoteVideo.srcObject.addTrack(event.track);
+            }
+            
+            function setupBitrateHandling() {
+                // Set video bitrate to ensure smooth transmission
+                peerConnection.getSenders().forEach(sender => {
+                    if (sender.track && sender.track.kind === 'video') {
+                        const parameters = sender.getParameters();
+                        if (!parameters.encodings) {
+                            parameters.encodings = [{}];
+                        }
+                        parameters.encodings[0].maxBitrate = 1000000; // 1 Mbps
+                        sender.setParameters(parameters)
+                            .catch(e => console.error('Error setting bitrate:', e));
+                    }
+                });
+            }
+            
+            async function createAndSendOffer() {
+                try {
+                    const offer = await peerConnection.createOffer({
+                        offerToReceiveAudio: true,
+                        offerToReceiveVideo: true
+                    });
+                    
+                    await peerConnection.setLocalDescription(offer);
+                    
+                    // Send the offer through signaling server
+                    socket.emit('offer', { offer: peerConnection.localDescription });
+                    updateStatus('Offer sent');
+                } catch (error) {
+                    console.error('Error creating offer:', error);
+                    updateStatus('Failed to create offer: ' + error.message);
+                }
+            }
+            
+            // Socket.io event handlers
+            socket.on('offer', async data => {
+                try {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    socket.emit('answer', { answer });
+                    updateStatus('Answered incoming call');
+                } catch (error) {
+                    console.error('Error handling offer:', error);
+                    updateStatus('Failed to handle offer: ' + error.message);
+                }
+            });
+            
+            socket.on('answer', async data => {
+                try {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    updateStatus('Connected to peer');
+                } catch (error) {
+                    console.error('Error handling answer:', error);
+                    updateStatus('Failed to handle answer: ' + error.message);
+                }
+            });
+            
+            socket.on('ice-candidate', async data => {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                } catch (error) {
+                    console.error('Error adding ICE candidate:', error);
+                    updateStatus('Failed to add ICE candidate: ' + error.message);
+                }
+            });
         // Start the application
         startVideo(localVideo);
     </script>
