@@ -1,8 +1,13 @@
-Here's an updated README for your repository with both deployment options:
+# Final project explanation
+## Algorithms
+in the folder "algo code" there are 6 files
+fore algorithem file:
+* CCA_final.py
+* CroosCorrelation_final.py
 
----
+## Leap Motion controller & unity 
 
-# Video Conference with Hand Tracking
+## Video Conference with Hand Tracking
 
 This project is a video conferencing application with hand tracking capabilities using MediaPipe. The application allows users to see hand landmarks overlaid on their video streams, both locally and remotely.
 
