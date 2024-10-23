@@ -1,11 +1,18 @@
 # Final project explanation
 ## Algorithms
-in the folder "algo code" there are 6 files
-fore algorithem file:
-* CCA_final.py
-* CroosCorrelation_final.py
+in the folder "algo code" there are 6 files:
+* CCA_final.py - algorithem file.
+* CroosCorrelation_final.py - algorithem file.
+* DWT_final.py - algorithem file.
+* Wavlet_final.py - algorithem file.
+* split_left_right.py - takes the data file that represent two hand movments and splits it to right hand and left hand data files.
+* main.py - this is the file to run the code.
 
 ## Leap Motion controller & unity 
+in order to run this part of the project you do need:
+1. leap motion controler
+2. unity on your pc.
+in the folder "unity project/My project" is the intier unity project that you can connect a leap motion controler and simply run the unity project.
 
 ## Video Conference with Hand Tracking
 
