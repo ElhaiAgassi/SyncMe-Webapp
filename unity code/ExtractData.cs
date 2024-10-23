@@ -25,7 +25,7 @@ public class ExtractData : MonoBehaviour
 {
     // the device itself
     public LeapProvider leapProvider;
-    string filePath = "unsynced2.json";
+    string filePath = "output.json";
     // string filePath = "mirrored_data4.json";
     bool isRunning = false;
     const float timerInterval = 20f;
