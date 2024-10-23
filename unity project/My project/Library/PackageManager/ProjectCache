@@ -7,7 +7,7 @@ m_ProjectFiles:
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 638629396601522254
+      ticks: 638652881483242546
     m_Hash: 2683192979
   m_LockFileStatus:
     m_FilePath: "C:/Users/dovy4/Desktop/\u05D0\u05D5\u05E0\u05D9\u05D1\u05E8\u05E1\u05D9\u05D8\u05D4
@@ -17,7 +17,7 @@ m_ProjectFiles:
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 638629396601572454
+      ticks: 638652881483532605
     m_Hash: 825195015
 m_EmbeddedPackageManifests:
   m_ManifestsStatus: {}
@@ -266,12 +266,14 @@ m_ResolvedPackages:
     - 2.4.3
     - 2.4.4
     - 2.5.1
+    - 2.5.2
     compatible:
     - 2.2.0
     - 2.3.1
     - 2.4.3
     - 2.4.4
     - 2.5.1
+    - 2.5.2
     recommended: 2.2.0
     deprecated: []
   dependencies: []
@@ -448,12 +450,14 @@ m_ResolvedPackages:
     - 7.0.0-pre.1
     - 7.0.0
     - 7.0.1
+    - 7.0.2
     compatible:
     - 6.0.0
     - 6.0.1
     - 7.0.0-pre.1
     - 7.0.0
     - 7.0.1
+    - 7.0.2
     recommended: 6.0.1
     deprecated: []
   dependencies: []
@@ -3154,11 +3158,13 @@ m_ResolvedPackages:
     - 3.0.27
     - 3.0.28
     - 3.0.31
+    - 3.0.34
     compatible:
     - 3.0.27
     - 3.0.28
     - 3.0.31
-    recommended: 3.0.31
+    - 3.0.34
+    recommended: 3.0.34
     deprecated: []
   dependencies:
   - name: com.unity.ext.nunit

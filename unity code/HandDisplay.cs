@@ -1,4 +1,3 @@
-// Author: Zeev Fischer
 /*
 This class will read two JSON files corresponding to the classes MyBone and SerializableFinger
 (again, imported from the file HandData.cs). It will work only after pressing "q"!!

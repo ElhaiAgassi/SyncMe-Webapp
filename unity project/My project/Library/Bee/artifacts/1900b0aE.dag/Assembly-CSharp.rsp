@@ -368,7 +368,6 @@
 "Assets/HandDisplay.cs"
 "Assets/python.cs"
 "Assets/SwitchHands.cs"
-"Assets/test2.cs"
 -langversion:9.0
 
 /deterministic

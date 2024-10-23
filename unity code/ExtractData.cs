@@ -1,4 +1,3 @@
-//author: zeev fischer
 /*
 this is a data extraction class
 it creats the file data4.json

@@ -67,7 +67,6 @@
     <Compile Include="Assets\python.cs" />
     <Compile Include="Assets\SwitchHands.cs" />
     <Compile Include="Assets\ExtractData.cs" />
-    <Compile Include="Assets\test2.cs" />
     <Compile Include="Assets\HandDisplay.cs" />
     <Compile Include="Assets\HandData.cs" />
   </ItemGroup>
