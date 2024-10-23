@@ -1,5 +1,17 @@
 # Final project explanation
-## Algorithms
+## Leap Motion controller & unity 
+in order to run this part of the project you do need:
+1. leap motion controler
+2. unity on your pc.  
+in the folder "unity project/My project" is the intier unity project.
+1. download the mentioned folder from the reposetory
+2. open unity and open the folder caled "My project"
+3. connect the leap motion controler
+4. run the unity project
+Noat: you may need to download the SDk for the leap see here[https://leap2.ultraleap.com/downloads/leap-motion-controller-2/]
+
+
+## Algorithms / analyzing data
 in the folder "algo code" there are 6 files:
 * CCA_final.py - algorithem file.
 * CroosCorrelation_final.py - algorithem file.
@@ -7,12 +19,6 @@ in the folder "algo code" there are 6 files:
 * Wavlet_final.py - algorithem file.
 * split_left_right.py - takes the data file that represent two hand movments and splits it to right hand and left hand data files.
 * main.py - this is the file to run the code.
-
-## Leap Motion controller & unity 
-in order to run this part of the project you do need:
-1. leap motion controler
-2. unity on your pc.
-in the folder "unity project/My project" is the intier unity project that you can connect a leap motion controler and simply run the unity project.
 
 ## Video Conference with Hand Tracking
 
