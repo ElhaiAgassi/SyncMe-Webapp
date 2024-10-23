@@ -1,24 +1,40 @@
 # Final project explanation
 ## Leap Motion controller & unity 
-in order to run this part of the project you do need:
+### requierments
 1. leap motion controler
 2. unity on your pc.  
+### how to run
 in the folder "unity project/My project" is the intier unity project.
 1. download the mentioned folder from the reposetory
 2. open unity and open the folder caled "My project"
 3. connect the leap motion controler
 4. run the unity project
-Noat: you may need to download the SDk for the leap see here[https://leap2.ultraleap.com/downloads/leap-motion-controller-2/]
+Noat: you may need to download the SDk for the leap see [here](https://leap2.ultraleap.com/downloads/leap-motion-controller-2/)
 
+there are 4 scripts to this project they are alsow presented seperatly in the folder "unity code" if you wish to vreat your own unity project.
+* ExtractData.cs - this file will record the hand movment detected by the Leap use "R" to start recording "S" to stop and "T" for a set recording of 15 seconds. this will give you a json file caled "output.json"
+* Handdata.cs - this file showes the classes created to save the data in an orderly fashon.
+* HandDisplay.cs this can take the file from "ExtractData.cs" and show the recorded hands however in this code you do need to manualy change the path to the created file in the code (line 17)!!
+* SwitcHands - there are differand hand displays that are bilt in the Leap api this lest you change thrue them using numbers 0-6
 
 ## Algorithms / analyzing data
-in the folder "algo code" there are 6 files:
+after runing the unity project and recording hand movments you can run the algorithems on the output file created.
+1. downlad the files from this reposetory.
+2. creat a python envierment and add the files
+3. in main.py change the "hand_recordings" variable to the path of your output file and run main.
+   
+### file explanation
 * CCA_final.py - algorithem file.
 * CroosCorrelation_final.py - algorithem file.
 * DWT_final.py - algorithem file.
 * Wavlet_final.py - algorithem file.
 * split_left_right.py - takes the data file that represent two hand movments and splits it to right hand and left hand data files.
 * main.py - this is the file to run the code.
+
+Noat:
+1. when running main you will get a print of each algorithem analyzing the file each algorithem uses differant feachers to determin if the hands are synced or not what you get is raw data. to determin an accuret synchronisation persentage you may give each feacher and algorithem its respective weight and calculate it yourself
+2. the wavelet algorithem is commented and is set not to run as it did not preduce and relevent results
+3. remember manual changes may be needed for the input file path.
 
 ## Video Conference with Hand Tracking
 
